@@ -1,21 +1,10 @@
 import cv2
 import numpy as np
 
-def detect_coke_can(frame):
+def detect_coke_can(frame, lower_hue1, upper_hue1, lower_hue2, upper_hue2):
     # Convert RGB to HSV
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
-    # Define the range of red color (you can adjust this range to match your specific Coke can)
-    #for 1 block
-    # lower_hue1 = np.array([0, 50, 50])    # Lower range for red
-    # upper_hue1 = np.array([10, 255, 111]) # Upper range for red
-
-    lower_hue1 = np.array([0, 0, 0])    # Lower range for red
-    upper_hue1 = np.array([15, 255, 100])
-
-    lower_hue2 = np.array([160, 50, 50])  # Red in the upper range
-    upper_hue2 = np.array([180, 255, 255])
-
     # Threshold the HSV image to get only red colors
     mask1 = cv2.inRange(hsv_frame, lower_hue1, upper_hue1)
     mask2 = cv2.inRange(hsv_frame, lower_hue2, upper_hue2)
@@ -50,8 +39,16 @@ def process_image(image_path):
         print(f"Error: could not load image from {image_path}")
         return
     
+    # Define the range of red color (you can adjust this range to match your specific Coke can)
+    # Example hue ranges for the Coke can; adjust these values as needed based on your analysis
+    lower_hue1 = np.array([0, 50, 50])    # Lower range for red
+    upper_hue1 = np.array([10, 255, 255]) # Upper range for red
+
+    lower_hue2 = np.array([160, 50, 50])  # Red in the upper range
+    upper_hue2 = np.array([180, 255, 255])
+    
     # Detect Coke-can
-    result_frame = detect_coke_can(frame)
+    result_frame = detect_coke_can(frame, lower_hue1, upper_hue1, lower_hue2, upper_hue2)
     
     # Save the result
     result_path = 'detected_coke_can_output.png'
@@ -64,4 +61,4 @@ def process_image(image_path):
 
 # Example usage
 if __name__ == "__main__":
-    process_image(r'RoboMaster-SDK\examples\pic\coke-3block.jpg')
+    process_image(r'RoboMaster-SDK\examples\pic\coke-1block.jpg')
