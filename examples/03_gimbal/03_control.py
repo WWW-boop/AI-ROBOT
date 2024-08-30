@@ -21,7 +21,7 @@ from robomaster import robot
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta")
+    ep_robot.initialize(conn_type="ap")
 
     ep_gimbal = ep_robot.gimbal
 

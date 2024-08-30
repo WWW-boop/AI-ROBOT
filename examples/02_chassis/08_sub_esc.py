@@ -22,7 +22,7 @@ from robomaster import robot
 def sub_esc_info_handler(esc_info):
     speed, angle, timestamp, state = esc_info
     print("chassis esc: speed:{0}, angle:{1}, timestamp:{2}, state:{3}".format(speed, angle, timestamp, state))
-
+    #about speed each chassis and angle
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()

@@ -1,30 +1,20 @@
-# -*-coding:utf-8-*-
-# Copyright (c) 2020 DJI.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License in the file LICENSE.txt or at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
 import cv2
 from robomaster import robot
+import time
+import matplotlib.pyplot as plt
 
+# Number of runs to collect execution times
+num_runs = 5
+execution_times = []
 
-if __name__ == '__main__':
+for _ in range(num_runs):
+    start_time = time.time()
+
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta")
+    ep_robot.initialize(conn_type="ap")
 
     ep_camera = ep_robot.camera
 
-    # 显示200帧图传
     ep_camera.start_video_stream(display=False)
     for i in range(0, 200):
         img = ep_camera.read_cv2_image()
@@ -34,3 +24,20 @@ if __name__ == '__main__':
     ep_camera.stop_video_stream()
 
     ep_robot.close()
+
+    end_time = time.time()
+    execution_times.append(end_time - start_time)
+
+# Plotting the execution times
+plt.figure(figsize=(6, 6))
+plt.plot(range(1, num_runs + 1), execution_times, marker='o', linestyle='-', color='b')
+plt.title('Execution Time of Robot WIFI / TCP')
+plt.xlabel('Run Number')
+plt.ylabel('Execution Time (seconds)')
+plt.grid(True)
+
+# Save the plot as an image file
+plt.savefig('execution_times_plot_w_T.png')
+
+# Optionally display the plot
+plt.show()

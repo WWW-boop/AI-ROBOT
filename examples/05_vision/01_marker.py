@@ -60,7 +60,7 @@ def on_detect_marker(marker_info):
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta")
+    ep_robot.initialize(conn_type="ap")
 
     ep_vision = ep_robot.vision
     ep_camera = ep_robot.camera
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     ep_camera.start_video_stream(display=False)
     result = ep_vision.sub_detect_info(name="marker", callback=on_detect_marker)
 
-    for i in range(0, 500):
+    for i in range(0, 1500):
         img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
         for j in range(0, len(markers)):
             cv2.rectangle(img, markers[j].pt1, markers[j].pt2, (255, 255, 255))

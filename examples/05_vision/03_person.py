@@ -55,7 +55,7 @@ def on_detect_person(person_info):
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta")
+    ep_robot.initialize(conn_type="ap")
 
     ep_vision = ep_robot.vision
     ep_camera = ep_robot.camera

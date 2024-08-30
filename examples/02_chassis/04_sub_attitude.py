@@ -25,7 +25,7 @@ def sub_attitude_info_handler(attitude_info):
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta")
+    ep_robot.initialize(conn_type="ap")
 
     ep_chassis = ep_robot.chassis
 
