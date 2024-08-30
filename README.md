@@ -10,6 +10,10 @@
   <img src="https://avatars.githubusercontent.com/u/151647112?v=4" width="50px" alt="username"/>
 </a>
 
+<a href="https://github.com/Jedex2">
+  <img src="https://avatars.githubusercontent.com/u/151657971?v=4" width="50px" alt="username"/>
+</a>
+
 # RoboMaster-SDK
 
 [![Gitter](https://badges.gitter.im/RoboMaster-SDK/community.svg)](https://gitter.im/RoboMaster-SDK/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
