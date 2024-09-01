@@ -64,4 +64,4 @@ def process_image(image_path):
 
 # Example usage
 if __name__ == "__main__":
-    process_image(r'RoboMaster-SDK\examples\pic\coke-3block.jpg')
+    process_image(r'RoboMaster-SDK\examples\pic\coke-1block.jpg')
