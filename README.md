@@ -1,3 +1,8 @@
+
+<div align="center">
+  <img align="center" alt="Coding" src="https://media1.tenor.com/m/64CJUF59B8cAAAAd/the-rizzler-costco-guys.gif">
+</div>
+
 ## Contributors
 
 <a href="https://github.com/XzoSisT">
@@ -13,15 +18,3 @@
 <a href="https://github.com/Jedex2">
   <img src="https://avatars.githubusercontent.com/u/151657971?v=4" width="50px" alt="username"/>
 </a>
-
-# RoboMaster-SDK
-
-[![Gitter](https://badges.gitter.im/RoboMaster-SDK/community.svg)](https://gitter.im/RoboMaster-SDK/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-
-<img src="docs/source/images/robomaster.jpg" width="600">
-
-Learn more about the RoboMaster Education Robot: https://www.dji.com/robomaster-ep
-
-RoboMaster Developer Guide: https://robomaster-dev.rtfd.io/
-
-Gitee link for RoboMaster SDK download: https://gitee.com/xitinglin/RoboMaster-SDK
