@@ -92,5 +92,5 @@ def process_image(image_path, template_paths):
 
 # Example usage
 if __name__ == "__main__":
-    process_image(r'RoboMaster-SDK\examples\pic\coke-1block.jpg', 
-                  [r'template_small.jpg', r'template_medium.jpg', r'template_large.jpg'])
+    process_image(r'RoboMaster-SDK\examples\pic\left_coke_yai.png', 
+                  [r'RoboMaster-SDK\examples\pic\coke-1block.jpg', r'RoboMaster-SDK\examples\pic\coke-3block.jpg', r'RoboMaster-SDK\examples\pic\coke-4block.jpg'])
