@@ -1,0 +1,22 @@
+import cv2
+import numpy as np
+import robomaster
+from robomaster import robot
+from robomaster import vision
+from robomaster import blaster
+
+p = 0.1
+
+while True:
+        if contours:
+            x, y = markers[-1].center  # x,y here in the pixel unit
+
+            err_x = (center_x - x)  # err_x = image_center in x direction - current marker center in x direction
+            err_y = (center_y - y)  # err_y = image_center in y direction - current marker center in y direction
+
+                # คำนวณความเร็วในการหมุน gimbal โดยใช้ PID
+            speed_x = ((p * err_x))
+            speed_y = ((p * err_y))
+
+            # หมุน gimbal ตามความเร็วที่คำนวณมาก
+            ep_gimbal.drive_speed(pitch_speed=-speed_y, yaw_speed=speed_x)
