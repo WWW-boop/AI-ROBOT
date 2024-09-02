@@ -5,6 +5,10 @@ from robomaster import robot
 from robomaster import vision
 from robomaster import blaster
 
+def sub_data_handler(angle_info):
+    global list_of_data
+    list_of_data = angle_info
+
 p = 0.1
 
 while True:
@@ -20,3 +24,5 @@ while True:
 
             # หมุน gimbal ตามความเร็วที่คำนวณมาก
             ep_gimbal.drive_speed(pitch_speed=-speed_y, yaw_speed=speed_x)
+
+
