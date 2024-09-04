@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import robomaster
+from robomaster import robot
+from robomaster import vision
+from robomaster import blaster
 
 def detect_coke_can(frame, templates):
     # Convert RGB to HSV
@@ -92,5 +96,13 @@ def process_image(image_path, template_paths):
 
 # Example usage
 if __name__ == "__main__":
+    ep_robot = robot.Robot()
+    ep_robot.initialize(conn_type="ap")
+    ep_vision = ep_robot.vision
+    ep_camera = ep_robot.camera
+    ep_gimbal = ep_robot.gimbal
+    ep_blaster = ep_robot.blaster
+
+    
     process_image(r'RoboMaster-SDK\examples\pic\coke-1block.jpg', 
                   [r'RoboMaster-SDK\examples\pic\coke-1block.jpg', r'RoboMaster-SDK\examples\pic\coke-3block.jpg', r'RoboMaster-SDK\examples\pic\coke-4block.jpg'])
