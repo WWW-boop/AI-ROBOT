@@ -4,20 +4,20 @@ from robomaster import robot
 from sklearn.metrics.pairwise import cosine_similarity
 
 def detect_coke_can(frame, templates):
-    # Your detection logic remains the same
-    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    # Noise reduction
+    blurred_frame = cv2.GaussianBlur(frame, (5, 5), 0)
+    hsv_frame = cv2.cvtColor(blurred_frame, cv2.COLOR_BGR2HSV)
     
-    lower_hue1 = np.array([0, 0, 0])    # Lower range for red
-    upper_hue1 = np.array([15, 255, 100])
-    
-    lower_hue2 = np.array([160, 50, 50])  # Red in the upper range
+    # Improved HSV masking
+    lower_hue1 = np.array([0, 50, 50])
+    upper_hue1 = np.array([15, 255, 255])
+    lower_hue2 = np.array([160, 50, 50])
     upper_hue2 = np.array([180, 255, 255])
-
+    
     mask1 = cv2.inRange(hsv_frame, lower_hue1, upper_hue1)
     mask2 = cv2.inRange(hsv_frame, lower_hue2, upper_hue2)
     
     mask = mask1 | mask2
-    
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
@@ -30,7 +30,8 @@ def detect_coke_can(frame, templates):
     if contours:
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
-            if w > 20 and h > 20:
+            aspect_ratio = float(w) / h
+            if 20 < w < 200 and 20 < h < 200 and 0.5 < aspect_ratio < 2.0:
                 subregion = frame[y:y+h, x:x+w]
                 for template in templates:
                     resized_template = cv2.resize(template, (w, h))
@@ -50,7 +51,6 @@ def detect_coke_can(frame, templates):
     
     return frame
 
-# Real-time detection with RoboMaster SDK
 def real_time_detection_with_robomaster(template_paths):
     # Load all templates
     templates = [cv2.imread(template_path) for template_path in template_paths]
@@ -61,13 +61,14 @@ def real_time_detection_with_robomaster(template_paths):
     
     # Initialize the RoboMaster robot
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="ap")  # Use 'sta' if connecting through a router
+    ep_robot.initialize(conn_type="ap")
     
     # Start the camera feed
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False)
     
     try:
+        frame_count = 0
         while True:
             # Capture a frame from the robot's camera
             frame = ep_camera.read_cv2_image(strategy='newest', timeout=2.5)
@@ -76,11 +77,12 @@ def real_time_detection_with_robomaster(template_paths):
                 print("Error: Failed to grab frame from RoboMaster camera.")
                 break
             
-            # Detect Coke-can using your existing function
-            result_frame = detect_coke_can(frame, templates)
+            # Process every 5th frame to reduce load
+            if frame_count % 5 == 0:
+                result_frame = detect_coke_can(frame, templates)
+                cv2.imshow('Real-Time Coke Can Detection', result_frame)
             
-            # Display the result
-            cv2.imshow('Real-Time Coke Can Detection', result_frame)
+            frame_count += 1
             
             # Exit the loop when 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -92,8 +94,7 @@ def real_time_detection_with_robomaster(template_paths):
         ep_robot.close()
         cv2.destroyAllWindows()
 
-# Example usage
 if __name__ == "__main__":
-    real_time_detection_with_robomaster([r'RoboMaster-SDK\examples\pic\coke-1block.jpg',
-                                         r'RoboMaster-SDK\examples\pic\coke-3block.jpg',
-                                         r'RoboMaster-SDK\examples\pic\coke-4block.jpg'])
+    real_time_detection_with_robomaster([r'examples\pic\coke-1block.jpg',
+                                         r'examples\pic\coke-3block.jpg',
+                                         r'examples\pic\coke-4block.jpg'])
