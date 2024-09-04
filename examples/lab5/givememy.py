@@ -3,6 +3,36 @@ import numpy as np
 from robomaster import robot
 from sklearn.metrics.pairwise import cosine_similarity
 
+# คลาสสำหรับเก็บข้อมูล marker(ป้าย)
+class MarkerInfo:
+    # ข้อมูลจุดตรงกลางป้าย ความกว้าง ความยาว ข้อมูลป้าย
+    def __init__(self, x, y, w, h, info):
+        self._x = x
+        self._y = y
+        self._w = w
+        self._h = h
+        self._info = info
+
+    # คำนวณมุมซ้ายบนของป้ายและแปลงเป็น pixel
+    @property
+    def pt1(self):
+        return int((self._x - self._w / 2) * 1280), int((self._y - self._h / 2) * 720)
+
+    # คำนวณมุมขวาล่างของป้ายและแปลงเป็น pixel
+    @property
+    def pt2(self):
+        return int((self._x + self._w / 2) * 1280), int((self._y + self._h / 2) * 720)
+
+    # จุดกลางป้ายเป็น pixel
+    @property
+    def center(self):
+        return int(self._x * 1280), int(self._y * 720)
+
+    # ข้อมูลป้าย
+    @property
+    def text(self):
+        return self._info
+
 def detect_coke_can(frame, templates):
     # Noise reduction
     blurred_frame = cv2.GaussianBlur(frame, (5, 5), 0)
@@ -24,8 +54,7 @@ def detect_coke_can(frame, templates):
     
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    best_similarity = 0
-    best_box = None
+    markers = []
     
     if contours:
         for contour in contours:
@@ -39,14 +68,12 @@ def detect_coke_can(frame, templates):
                     template_flat = resized_template.flatten()
                     similarity = cosine_similarity([subregion_flat], [template_flat])[0, 0]
                     
-                    if similarity > best_similarity:
-                        best_similarity = similarity
-                        best_box = (x, y, w, h)
+                    if similarity > 0.5:
+                        markers.append(MarkerInfo(x, y, w, h, f'Similarity: {similarity:.2f}'))
     
-    if best_box and best_similarity > 0.5:
-        x, y, w, h = best_box
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.putText(frame, f'Similarity: {best_similarity:.2f}', (x, y - 10),
+    for marker in markers:
+        cv2.rectangle(frame, marker.pt1, marker.pt2, (0, 255, 0), 2)
+        cv2.putText(frame, marker.text, (marker.pt1[0], marker.pt1[1] - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     
     return frame
