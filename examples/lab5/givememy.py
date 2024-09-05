@@ -98,7 +98,7 @@ def real_time_detection_with_robomaster(template_paths):
         frame_count = 0
         while True:
             # Capture a frame from the robot's camera
-            frame = ep_camera.read_cv2_image(strategy='newest', timeout=2.5)
+            frame = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
             
             if frame is None:
                 print("Error: Failed to grab frame from RoboMaster camera.")

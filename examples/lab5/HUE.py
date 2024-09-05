@@ -55,7 +55,7 @@ def pick_color(image):
     cv2.destroyAllWindows()
 
 # โหลดและปรับขนาดภาพ
-image_path = 'examples\pic\coke-4block.jpg'
+image_path = '.\examples\lab4\coke.jpg'
 image = cv2.imread(image_path)
 
 if image is None:
