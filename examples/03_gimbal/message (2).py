@@ -83,9 +83,9 @@ if __name__ == "__main__":
     time.sleep(1)
 
     # PID controller constants
-    p = -0.6
-    i = 0
-    d = 0
+    p = 0.8 / 1.7
+    i = (0.8/0.7)/(0.639/2)
+    d = (0.8/0.7)*(0.639/2)
 
     data_pith_yaw = []
 

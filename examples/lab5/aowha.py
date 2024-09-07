@@ -44,12 +44,11 @@ def detect_coke_can(frame, templates):
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
     # Define the range of red color (adjust the range to match your Coke can)
-    lower_hue1 = np.array([0, 0, 0])    # Lower range for red
-    upper_hue1 = np.array([15, 255, 100])
-    
-    lower_hue2 = np.array([160, 50, 50])  # Red in the upper range
-    upper_hue2 = np.array([180, 255, 255])
+    lower_hue1 = np.array([0, 120, 70])
+    upper_hue1 = np.array([10, 255, 255])
 
+    lower_hue2 = np.array([170, 120, 70])
+    upper_hue2 = np.array([180, 255, 255])
     # Threshold the HSV image to get only red colors
     mask1 = cv2.inRange(hsv_frame, lower_hue1, upper_hue1)
     mask2 = cv2.inRange(hsv_frame, lower_hue2, upper_hue2)
@@ -144,9 +143,9 @@ if __name__ == "__main__":
 
     # Load templates
     templates = [
-        cv2.imread(r'C:\Users\lataeq\AI-ROBOT\examples\pic\coke-1block.jpg'),
-        cv2.imread(r'C:\Users\lataeq\AI-ROBOT\examples\pic\coke-1block.jpg'),
-        cv2.imread(r'C:\Users\lataeq\AI-ROBOT\examples\pic\coke-4block.jpg')
+        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-1block.jpg'),
+        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-3block.jpg'),
+        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-4block.jpg')
     ]
 
     # loop การทำงานของหุ่น
