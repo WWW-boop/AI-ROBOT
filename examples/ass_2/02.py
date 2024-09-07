@@ -6,6 +6,7 @@ import time
 
 # Function to detect object (bottle/chick) using HSV color matching and template comparison
 def detect_object(frame, templates, prev_box, lower_hsv, upper_hsv, alpha=0.2):
+    
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
     # Create mask for color detection
@@ -146,10 +147,14 @@ if __name__ == "__main__":
     
     # Load templates (use the two images you uploaded for template matching)
     templates_bottle = [
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5900.jpg')  # Water bottle template
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5907.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5908.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5909.jpg')  # Water bottle template
     ]
     templates_chick = [
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5905.jpg')  # Chick template
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5910.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5911.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5913.jpg')    # Chick template
     ]
 
     ep_robot = robot.Robot()
