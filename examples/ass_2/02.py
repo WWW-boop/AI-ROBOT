@@ -120,17 +120,17 @@ def detect_chick(frame, templates, prev_box, lower_hsv, upper_hsv, alpha=0.2):
     else:
         return frame, prev_box
 
-def process_image(frame, templates_bottle, templates_chick, prev_box_bottle, prev_box_chick):
+def process_image(frame, templates, prev_box_bottle, prev_box_chick):
     # Detect water bottle using blue HSV range
     result_frame, updated_box_bottle = detect_object(
-        frame, templates_bottle, prev_box_bottle,
+        frame, templates, prev_box_bottle,
         lower_hsv=np.array([100, 150, 50]),  # Blue range for the bottle
         upper_hsv=np.array([140, 255, 255])
     )
     
     # Detect chick using a different HSV range (for example, yellow)
     result_frame, updated_box_chick = detect_chick(
-        result_frame, templates_chick, prev_box_chick,
+        result_frame, templates, prev_box_chick,
         lower_hsv=np.array([20, 100, 100]),  # Yellow range for the chick
         upper_hsv=np.array([30, 255, 255])
     )
@@ -146,15 +146,10 @@ if __name__ == "__main__":
     list_of_data = []
     
     # Load templates (use the two images you uploaded for template matching)
-    templates_bottle = [
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5907.jpg'),
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5908.jpg'),
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5909.jpg')  # Water bottle template
-    ]
-    templates_chick = [
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5910.jpg'),
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5911.jpg'),
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5913.jpg')    # Chick template
+    templates = [
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\ass21.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\ass22.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\ass23.jpg')  # Water bottle template
     ]
 
     ep_robot = robot.Robot()
@@ -177,7 +172,7 @@ if __name__ == "__main__":
         
         # Detect water bottle and chick, smooth bounding boxes
         result_frame, prev_box_bottle, prev_box_chick = process_image(
-            img, templates_bottle, templates_chick, prev_box_bottle, prev_box_chick
+            img, templates, prev_box_bottle, prev_box_chick
         )
         
         # Show the frame with detection
