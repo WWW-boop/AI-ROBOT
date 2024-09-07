@@ -4,16 +4,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 from robomaster import robot, vision, blaster
 import time
 
-# Function to detect water bottle using HSV color matching and smoothing
-def detect_water_bottle(frame, templates, prev_box, alpha=0.2):
+# Function to detect object (bottle/chick) using HSV color matching and template comparison
+def detect_object(frame, templates, prev_box, lower_hsv, upper_hsv, alpha=0.2):
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
-    # Define HSV range for blue color in the bottle label
-    lower_blue = np.array([100, 150, 50])  # Modify values as needed
-    upper_blue = np.array([140, 255, 255])
-    
-    # Create mask for blue color detection
-    mask = cv2.inRange(hsv_frame, lower_blue, upper_blue)
+    # Create mask for color detection
+    mask = cv2.inRange(hsv_frame, lower_hsv, upper_hsv)
 
     # Apply morphological transformations to clean up the mask
     kernel = np.ones((5, 5), np.uint8)
@@ -32,7 +28,7 @@ def detect_water_bottle(frame, templates, prev_box, alpha=0.2):
             if w > 20 and h > 20:  # Filter small contours
                 subregion = frame[y:y+h, x:x+w]
                 
-                # Compare each subregion with the provided template
+                # Compare each subregion with the provided templates
                 for template in templates:
                     resized_template = cv2.resize(template, (w, h))
                     subregion_flat = subregion.flatten()
@@ -66,11 +62,22 @@ def detect_water_bottle(frame, templates, prev_box, alpha=0.2):
     else:
         return frame, prev_box
 
-def process_image(frame, templates, prev_box):
-    result_frame, updated_box = detect_water_bottle(frame, templates, prev_box)
-    return result_frame, updated_box
-
-
+def process_image(frame, templates_bottle, templates_chick, prev_box_bottle, prev_box_chick):
+    # Detect water bottle using blue HSV range
+    result_frame, updated_box_bottle = detect_object(
+        frame, templates_bottle, prev_box_bottle,
+        lower_hsv=np.array([100, 150, 50]),  # Blue range for the bottle
+        upper_hsv=np.array([140, 255, 255])
+    )
+    
+    # Detect chick using a different HSV range (for example, yellow)
+    result_frame, updated_box_chick = detect_object(
+        result_frame, templates_chick, prev_box_chick,
+        lower_hsv=np.array([20, 100, 100]),  # Yellow range for the chick
+        upper_hsv=np.array([30, 255, 255])
+    )
+    
+    return result_frame, updated_box_bottle, updated_box_chick
 
 def sub_data_handler(angle_info):
     global list_of_data
@@ -80,9 +87,12 @@ def sub_data_handler(angle_info):
 if __name__ == "__main__":
     list_of_data = []
     
-    # Load templates
-    templates = [
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5900.jpg')  # Use the uploaded image for template matching
+    # Load templates (use the two images you uploaded for template matching)
+    templates_bottle = [
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5900.jpg')  # Water bottle template
+    ]
+    templates_chick = [
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5905.jpg')  # Chick template
     ]
 
     ep_robot = robot.Robot()
@@ -103,20 +113,20 @@ if __name__ == "__main__":
     accumulate_err_x = 0
     accumulate_err_y = 0
     data_pith_yaw = []
-    prev_box = None  # Initial previous box
+    prev_box_bottle = None  # Initial previous box for the bottle
+    prev_box_chick = None  # Initial previous box for the chick
     alpha = 0.2  # Smoothing factor
-    count = 0
 
     while True:
-        after_time = time.time()
         img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
         
-        # Detect water bottle and smooth bounding box
-        result_frame, prev_box = process_image(img, templates, prev_box)
-
+        # Detect water bottle and chick, smooth bounding boxes
+        result_frame, prev_box_bottle, prev_box_chick = process_image(
+            img, templates_bottle, templates_chick, prev_box_bottle, prev_box_chick
+        )
         
         # Show the frame with detection
-        cv2.imshow("Water Bottle Detection", result_frame)
+        cv2.imshow("Bottle and Chick Detection", result_frame)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
