@@ -1,108 +1,165 @@
 import cv2
 import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from robomaster import robot, vision, blaster
+import time
 
-def detect_coke_can_sliding_window(frame, templates, prev_box, window_size=(150, 150), stride=50, alpha=0.2, similarity_threshold=0.5):
-    """
-    Detect the Coke can using a sliding window approach.
+# ฟังก์ชันตรวจจับ Coke can ด้วยการ smoothing
+def detect_coke_can(frame, templates, prev_box, alpha=0.2):
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    
+    # Change the hue range to detect yellow color
+    lower_hue = np.array([20, 50, 50])  # ลดค่า saturation และ value เพื่อครอบคลุมมากขึ้น
+    upper_hue = np.array([40, 255, 255])  
+    
+    mask = cv2.inRange(hsv_frame, lower_hue, upper_hue)
 
-    Args:
-        frame: The current frame of the video.
-        templates: A list of template images of the Coke can.
-        prev_box: The previous bounding box of the Coke can.
-        window_size: The size of the sliding window.
-        stride: The stride of the sliding window.
-        alpha: The learning rate for the template update.
-        similarity_threshold: The threshold for the similarity score.
-
-    Returns:
-        The detected bounding box of the Coke can.
-    """
-    # Convert the frame to HSV color space
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-    # Define the HSV color range for the Coke can
-    lower_coke = np.array([0, 100, 100])
-    upper_coke = np.array([10, 255, 255])
-
-    # Threshold the HSV image to get a binary mask
-    mask = cv2.inRange(hsv, lower_coke, upper_coke)
-
-    # Apply morphological operations to the binary mask
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-
-    # Initialize the detected bounding box
-    detected_box = None
-
-    # Iterate over the sliding window
-    for x in range(0, frame.shape[1] - window_size[0], stride):
-        for y in range(0, frame.shape[0] - window_size[1], stride):
-            # Extract the current window
-            window = frame[y:y + window_size[1], x:x + window_size[0]]
-
-            # Compute the similarity score between the window and the templates
-            scores = []
-            for template in templates:
-                score = cv2.matchTemplate(window, template, cv2.TM_CCOEFF_NORMED)
-                scores.append(score)
-
-            # Compute the average similarity score
-            avg_score = np.mean(scores)
-
-            # Check if the similarity score is above the threshold
-            if avg_score > similarity_threshold:
-                # Update the detected bounding box
-                detected_box = (x, y, window_size[0], window_size[1])
-
-                # Update the template using the current window
-                template = cv2.resize(window, (template.shape[1], template.shape[0]))
-                templates.append(template)
-
-                # Break out of the loop
-                break
-
-    # Draw a larger bounding box to fully enclose the Coke can
-    if detected_box is not None:
-        x, y, w, h = detected_box
-        x -= 10
-        y -= 10
-        w += 20
-        h += 20
-
+    
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    best_similarity = 0
+    best_box = None
+    
+    if contours:
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            if w > 20 and h > 20:
+                subregion = frame[y:y+h, x:x+w]
+                
+                for template in templates:
+                    resized_template = cv2.resize(template, (w, h))
+                    subregion_flat = subregion.flatten()
+                    template_flat = resized_template.flatten()
+                    similarity = cosine_similarity([subregion_flat], [template_flat])[0, 0]
+                    
+                    if similarity > best_similarity:
+                        best_similarity = similarity
+                        best_box = (x, y, w, h)
+    
+    # Smoothing bounding box ด้วย weighted average
+    if best_box and best_similarity > 0.5:
+        x, y, w, h = best_box
+        
+        if prev_box is not None:
+            prev_x, prev_y, prev_w, prev_h = prev_box
+            
+            # Smooth ตำแหน่งของ bounding box
+            x = int(alpha * x + (1 - alpha) * prev_x)
+            y = int(alpha * y + (1 - alpha) * prev_y)
+            
+            # Smooth ขนาดของ bounding box ด้วย alpha ขนาดเล็กลง
+            size_alpha = 0.1  # ใช้ค่า alpha ที่เล็กลงสำหรับการเปลี่ยนขนาด
+            w = int(size_alpha * w + (1 - size_alpha) * prev_w)
+            h = int(size_alpha * h + (1 - size_alpha) * prev_h)
+        
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        cv2.putText(frame, f'Similarity: {best_similarity:.2f}', (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        
+        return frame, (x, y, w, h)
+    else:
+        return frame, prev_box
 
-    return detected_box
+def process_image(frame, templates, prev_box):
+    result_frame, updated_box = detect_coke_can(frame, templates, prev_box)
+    return result_frame, updated_box
 
-# Load the video capture device
-cap = cv2.VideoCapture(0)
+def sub_data_handler(angle_info):
+    global list_of_data
+    list_of_data = angle_info
 
-# Load the template images
-templates = []
-for i in range(5):
-    template = cv2.imread(f"template_{i}.jpg")
-    templates.append(template)
+# ฟังก์ชันหลัก
+if __name__ == "__main__":
+    # Initialize global variable for storing data
+    list_of_data = []
 
-# Initialize the previous bounding box
-prev_box = None
+    # Load templates
+    templates = [
+        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-1block.jpg'),
+        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-3block.jpg'),
+        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-4block.jpg')
+    ]
 
-while True:
-    # Read a frame from the video capture device
-    ret, frame = cap.read()
+    # Check if templates are loaded correctly
+    templates = [template for template in templates if template is not None]
+    
+    ep_robot = robot.Robot()
+    ep_robot.initialize(conn_type="ap")
+    ep_camera = ep_robot.camera
+    ep_gimbal = ep_robot.gimbal
+    ep_gimbal.recenter().wait_for_completed()
+    ep_camera.start_video_stream(display=False)
 
-    # Detect the Coke can using the sliding window approach
-    detected_box = detect_coke_can_sliding_window(frame, templates, prev_box)
+    # the image center constants
+    center_x = 1280 / 2
+    center_y = 720 / 2
 
-    # Update the previous bounding box
-    prev_box = detected_box
+    # PID controller constants
+    p = -0.607  # -0.609 -0.65
+    i = 0
+    d = -0.00135
 
-    # Display the output
-    cv2.imshow("Coke Can Detector", frame)
+    accumulate_err_x = 0
+    accumulate_err_y = 0
+    data_pith_yaw = []
+    prev_box = None  # เก็บ bounding box จากเฟรมก่อนหน้า
+    alpha = 0.2  # ปัจจัยการ smooth
+    count = 0
 
-    # Exit on key press
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    prev_time = time.time()  # Initialize prev_time for the first loop
+    prev_err_x = 0  # Initialize prev_err_x for the first loop
+    prev_err_y = 0  # Initialize prev_err_y for the first loop
 
-# Release the video capture device
-cap.release()
-cv2.destroyAllWindows()
+    while True:
+        after_time = time.time()
+        img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
+        
+        # ตรวจจับ Coke และทำ smoothing bounding box
+        result_frame, prev_box = process_image(img, templates, prev_box)
+
+        if prev_box is not None:
+            x, y, w, h = prev_box
+            err_x = center_x - x
+            err_y = center_y - y
+            accumulate_err_x += err_x
+            accumulate_err_y += err_y
+            
+            if count >= 1:
+                # คำนวณความเร็วในการหมุน gimbal โดยใช้ PID
+                speed_x = (
+                    (p * err_x)
+                    + d * ((err_x - prev_err_x) / (after_time - prev_time))
+                    + i * (accumulate_err_x)
+                )
+                speed_y = (
+                    (p * err_y)
+                    + d * ((err_y - prev_err_y) / (after_time - prev_time))
+                    + i * (accumulate_err_y)
+                )
+                ep_gimbal.drive_speed(pitch_speed=-speed_y, yaw_speed=speed_x)
+                data_pith_yaw.append(
+                    list(list_of_data)  # Ensure list_of_data is updated
+                    + [err_x, err_y, round(speed_x, 3), round(speed_y, 3)]
+                )
+
+            count += 1
+            prev_time = after_time
+            prev_err_x = err_x
+            prev_err_y = err_y
+            time.sleep(0.001)
+        else:
+            # หมุนกลับ center
+            ep_gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
+        
+        # แสดงผล
+        cv2.imshow("Coke Can Detection", result_frame)
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    cv2.destroyAllWindows()
+    ep_camera.stop_video_stream()
+    ep_robot.close()

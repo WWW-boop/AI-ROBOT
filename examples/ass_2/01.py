@@ -1,18 +1,22 @@
 import cv2
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from robomaster import robot
+from robomaster import robot, vision, blaster
 import time
 
-# ฟังก์ชันตรวจจับ small chick plush toy ด้วยการ smoothing
-def detect_chick(frame, templates, prev_box, alpha=0.2):
+# ฟังก์ชันตรวจจับ Coke can ด้วยการ smoothing
+def detect_coke_can(frame, templates, prev_box, alpha=0.2):
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
-    # Define yellow color range in HSV
-    lower_yellow = np.array([20, 100, 100])  # Modify these values as needed to detect the plush toy
-    upper_yellow = np.array([30, 255, 255])  # Modify these values as needed to detect the plush toy
+    lower_hue1 = np.array([0, 50, 50])  # ลดค่า saturation และ value เพื่อครอบคลุมมากขึ้น
+    upper_hue1 = np.array([10, 255, 255])
+
+    lower_hue2 = np.array([170, 50, 50])  # ลดค่า saturation และ value เพื่อครอบคลุมมากขึ้น
+    upper_hue2 = np.array([180, 255, 255])  
     
-    mask = cv2.inRange(hsv_frame, lower_yellow, upper_yellow)
+    mask1 = cv2.inRange(hsv_frame, lower_hue1, upper_hue1)
+    mask2 = cv2.inRange(hsv_frame, lower_hue2, upper_hue2)
+    mask = mask1 | mask2
 
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
@@ -64,16 +68,23 @@ def detect_chick(frame, templates, prev_box, alpha=0.2):
         return frame, prev_box
 
 def process_image(frame, templates, prev_box):
-    result_frame, updated_box = detect_chick(frame, templates, prev_box)
+    result_frame, updated_box = detect_coke_can(frame, templates, prev_box)
     return result_frame, updated_box
+
+def sub_data_handler(angle_info):
+    global list_of_data
+    list_of_data = angle_info
 
 # ฟังก์ชันหลัก
 if __name__ == "__main__":
-    # Load templates (replace these with images of the chick plush toy)
+    # Initialize global variable for storing data
+    list_of_data = []
+
+    # Load templates
     templates = [
-        cv2.imread(r'RoboMaster-SDK\examples\pic\chick-1block.jpg'),
-        cv2.imread(r'RoboMaster-SDK\examples\pic\chick-3block.jpg'),
-        cv2.imread(r'RoboMaster-SDK\examples\pic\chick-4block.jpg')
+        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-1block.jpg'),
+        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-3block.jpg'),
+        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-4block.jpg')
     ]
 
     ep_robot = robot.Robot()
@@ -88,61 +99,63 @@ if __name__ == "__main__":
     center_y = 720 / 2
 
     # PID controller constants
-    p = -0.607
+    p = -0.607  # -0.609 -0.65
     i = 0
     d = -0.00135
 
     accumulate_err_x = 0
     accumulate_err_y = 0
-    prev_box = None
-    alpha = 0.2
-    prev_time = time.time()
-    prev_err_x = 0
-    prev_err_y = 0
+    data_pith_yaw = []
+    prev_box = None  # เก็บ bounding box จากเฟรมก่อนหน้า
+    alpha = 0.2  # ปัจจัยการ smooth
+    count = 0
 
     while True:
         after_time = time.time()
         img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
         
-        if img is not None:
-            # ตรวจจับ small chick plush toy และทำ smoothing bounding box
-            result_frame, prev_box = process_image(img, templates, prev_box)
+        # ตรวจจับ Coke และทำ smoothing bounding box
+        result_frame, prev_box = process_image(img, templates, prev_box)
 
-            if prev_box is not None:
-                x, y, w, h = prev_box
-                err_x = center_x - (x + w / 2)
-                err_y = center_y - (y + h / 2)
-                accumulate_err_x += err_x
-                accumulate_err_y += err_y
+        if prev_box is not None:
+            x, y, w, h = prev_box
+            err_x = center_x - x
+            err_y = center_y - y
+            accumulate_err_x += err_x
+            accumulate_err_y += err_y
+            
+            if count >= 1:
+                # คำนวณความเร็วในการหมุน gimbal โดยใช้ PID
+                speed_x = (
+                    (p * err_x)
+                    + d * ((prev_err_x - err_x) / (prev_time - after_time))
+                    + i * (accumulate_err_x)
+                )
+                speed_y = (
+                    (p * err_y)
+                    + d * ((prev_err_y - err_y) / (prev_time - after_time))
+                    + i * (accumulate_err_y)
+                )
+                ep_gimbal.drive_speed(pitch_speed=-speed_y, yaw_speed=speed_x)
+                data_pith_yaw.append(
+                    list(list_of_data)  # Ensure list_of_data is updated
+                    + [err_x, err_y, round(speed_x, 3), round(speed_y, 3)]
+                )
 
-                if prev_time != after_time:
-                    # คำนวณความเร็วในการหมุน gimbal โดยใช้ PID
-                    speed_x = (
-                        (p * err_x)
-                        + d * ((prev_err_x - err_x) / (after_time - prev_time))
-                        + i * accumulate_err_x
-                    )
-                    speed_y = (
-                        (p * err_y)
-                        + d * ((prev_err_y - err_y) / (after_time - prev_time))
-                        + i * accumulate_err_y
-                    )
-                    ep_gimbal.drive_speed(pitch_speed=-speed_y, yaw_speed=speed_x)
-
-                prev_time = after_time
-                prev_err_x = err_x
-                prev_err_y = err_y
-            else:
-                # หมุนกลับ center
-                ep_gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
-
-            # แสดงผล
-            cv2.imshow("Chick Detection", result_frame)
-
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
+            count += 1
+            prev_time = time.time()
+            prev_err_x = err_x
+            prev_err_y = err_y
+            time.sleep(0.001)
         else:
-            print("Failed to get image from camera")
+            # หมุนกลับ center
+            ep_gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
+        
+        # แสดงผล
+        cv2.imshow("Coke Can Detection", result_frame)
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
 
     cv2.destroyAllWindows()
     ep_camera.stop_video_stream()
