@@ -41,7 +41,7 @@ def detect_water_bottle(frame, templates, prev_box, alpha=0.2):
                     
                     if similarity > best_similarity:
                         best_similarity = similarity
-                        best_box = (x, y-50, w, h*4)
+                        best_box = (x, y-60, w, h*5)
     
     # Apply smoothing to the bounding box
     if best_box and best_similarity > 0.5:
@@ -82,7 +82,9 @@ if __name__ == "__main__":
     
     # Load templates
     templates = [
-        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5900.jpg')  # Use the uploaded image for template matching
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5907.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5908.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5909.jpg')  # Use the uploaded image for template matching
     ]
 
     ep_robot = robot.Robot()
