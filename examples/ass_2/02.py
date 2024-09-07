@@ -38,7 +38,7 @@ def detect_object(frame, templates, prev_box, lower_hsv, upper_hsv, alpha=0.2):
                     
                     if similarity > best_similarity:
                         best_similarity = similarity
-                        best_box = (x, y-50, w, h*4)
+                        best_box = (x, y-110, int(w*1.2), int(h*4.2))
     
     # Apply smoothing to the bounding box
     if best_box and best_similarity > 0.5:
@@ -131,8 +131,8 @@ def process_image(frame, templates, prev_box_bottle, prev_box_chick):
     # Detect chick using a different HSV range (for example, yellow)
     result_frame, updated_box_chick = detect_chick(
         result_frame, templates, prev_box_chick,
-        lower_hsv=np.array([20, 163, 118]),  # Yellow range for the chick
-        upper_hsv=np.array([42, 255, 255])
+        lower_hsv=np.array([32, 180, 0]),  # Yellow range for the chick
+        upper_hsv=np.array([50, 255, 163])
     )
     
     return result_frame, updated_box_bottle, updated_box_chick
