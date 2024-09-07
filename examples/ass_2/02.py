@@ -131,8 +131,8 @@ def process_image(frame, templates, prev_box_bottle, prev_box_chick):
     # Detect chick using a different HSV range (for example, yellow)
     result_frame, updated_box_chick = detect_chick(
         result_frame, templates, prev_box_chick,
-        lower_hsv=np.array([20, 100, 100]),  # Yellow range for the chick
-        upper_hsv=np.array([30, 255, 255])
+        lower_hsv=np.array([20, 163, 118]),  # Yellow range for the chick
+        upper_hsv=np.array([42, 255, 255])
     )
     
     return result_frame, updated_box_bottle, updated_box_chick
