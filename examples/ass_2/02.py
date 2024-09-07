@@ -167,13 +167,6 @@ if __name__ == "__main__":
     center_x = 1280 / 2
     center_y = 720 / 2
 
-    # PID controller constants
-    p = -0.607
-    i = 0
-    d = -0.00135
-
-    accumulate_err_x = 0
-    accumulate_err_y = 0
     data_pith_yaw = []
     prev_box_bottle = None  # Initial previous box for the bottle
     prev_box_chick = None  # Initial previous box for the chick
