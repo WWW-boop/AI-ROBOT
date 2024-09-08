@@ -1,27 +1,27 @@
 import cv2
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from robomaster import robot, vision, blaster
+from robomaster import robot
 import time
 
-# ฟังก์ชันตรวจจับ Coke can ด้วยการ smoothing
-def detect_coke_can(frame, templates, prev_box, alpha=0.2):
-    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+# Function to detect water bottle using HSV color matching and smoothing
+def detect_water_bottle(frame, templates, prev_box, alpha=0.2):
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    hsv_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2HSV)
     
-    lower_hue1 = np.array([0, 50, 50])  # ลดค่า saturation และ value เพื่อครอบคลุมมากขึ้น
-    upper_hue1 = np.array([10, 255, 255])
-
-    lower_hue2 = np.array([170, 50, 50])  # ลดค่า saturation และ value เพื่อครอบคลุมมากขึ้น
-    upper_hue2 = np.array([180, 255, 255])  
+    # Define HSV range for blue color in the bottle label
+    lower_blue = np.array([100, 150, 50])  # Modify values as needed
+    upper_blue = np.array([140, 255, 255])
     
-    mask1 = cv2.inRange(hsv_frame, lower_hue1, upper_hue1)
-    mask2 = cv2.inRange(hsv_frame, lower_hue2, upper_hue2)
-    mask = mask1 | mask2
+    # Create mask for blue color detection
+    mask = cv2.inRange(hsv_frame, lower_blue, upper_blue)
 
+    # Apply morphological transformations to clean up the mask
     kernel = np.ones((5, 5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     
+    # Find contours based on the mask
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     best_similarity = 0
@@ -30,9 +30,76 @@ def detect_coke_can(frame, templates, prev_box, alpha=0.2):
     if contours:
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
-            if w > 20 and h > 20:
+            if w > 20 and h > 20:  # Filter small contours
                 subregion = frame[y:y+h, x:x+w]
                 
+                # Compare each subregion with the provided template
+                for template in templates:
+                    resized_template = cv2.resize(template, (w, h))
+                    subregion_flat = subregion.flatten()
+                    template_flat = resized_template.flatten()
+                    similarity = cosine_similarity([subregion_flat], [template_flat])[0, 0]
+                    
+                    if similarity > best_similarity:
+                        best_similarity = similarity
+                        best_box = (x+10, y-60, w*2, h*5)
+    
+    # Apply smoothing to the bounding box
+    if best_box and best_similarity > 0.5:
+        x, y, w, h = best_box
+        
+        if prev_box is not None:
+            prev_x, prev_y, prev_w, prev_h = prev_box
+            
+            # Smooth the position and size of the bounding box
+            x = int(alpha * x + (1 - alpha) * prev_x)
+            y = int(alpha * y + (1 - alpha) * prev_y)
+            size_alpha = 0.1  # Use a smaller alpha for size changes
+            w = int(size_alpha * w + (1 - size_alpha) * prev_w)
+            h = int(size_alpha * h + (1 - size_alpha) * prev_h)
+        
+        # Draw the bounding box on the frame
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        cv2.putText(frame, f'Similarity: {best_similarity:.2f}', (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        
+        return frame, (x, y, w, h)
+    else:
+        return frame, prev_box
+
+def process_bottle_image(frame, templates, prev_box):
+    result_frame, updated_box = detect_water_bottle(frame, templates, prev_box)
+    return result_frame, updated_box
+
+def detect_chick(frame, templates, prev_box, alpha=0.2):
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    hsv_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2HSV)
+    
+    # Define HSV range for blue color in the bottle label
+    lower_yellow = np.array([20, 100, 100])  # Yellow range for the chick
+    upper_yellow = np.array([30, 255, 255])
+    
+    # Create mask for blue color detection
+    mask = cv2.inRange(hsv_frame, lower_yellow, upper_yellow)
+
+    # Apply morphological transformations to clean up the mask
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    
+    # Find contours based on the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    best_similarity = 0
+    best_box = None
+    
+    if contours:
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            if w > 20 and h > 20:  # Filter small contours
+                subregion = frame[y:y+h, x:x+w]
+                
+                # Compare each subregion with the provided template
                 for template in templates:
                     resized_template = cv2.resize(template, (w, h))
                     subregion_flat = subregion.flatten()
@@ -43,22 +110,21 @@ def detect_coke_can(frame, templates, prev_box, alpha=0.2):
                         best_similarity = similarity
                         best_box = (x, y, w, h)
     
-    # Smoothing bounding box ด้วย weighted average
+    # Apply smoothing to the bounding box
     if best_box and best_similarity > 0.5:
         x, y, w, h = best_box
         
         if prev_box is not None:
             prev_x, prev_y, prev_w, prev_h = prev_box
             
-            # Smooth ตำแหน่งของ bounding box
+            # Smooth the position and size of the bounding box
             x = int(alpha * x + (1 - alpha) * prev_x)
             y = int(alpha * y + (1 - alpha) * prev_y)
-            
-            # Smooth ขนาดของ bounding box ด้วย alpha ขนาดเล็กลง
-            size_alpha = 0.1  # ใช้ค่า alpha ที่เล็กลงสำหรับการเปลี่ยนขนาด
+            size_alpha = 0.1  # Use a smaller alpha for size changes
             w = int(size_alpha * w + (1 - size_alpha) * prev_w)
             h = int(size_alpha * h + (1 - size_alpha) * prev_h)
         
+        # Draw the bounding box on the frame
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
         cv2.putText(frame, f'Similarity: {best_similarity:.2f}', (x, y - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -67,25 +133,27 @@ def detect_coke_can(frame, templates, prev_box, alpha=0.2):
     else:
         return frame, prev_box
 
-def process_image(frame, templates, prev_box):
-    result_frame, updated_box = detect_coke_can(frame, templates, prev_box)
+def process_chick_image(frame, templates, prev_box):
+    result_frame, updated_box = detect_chick(frame, templates, prev_box)
     return result_frame, updated_box
+
+
 
 def sub_data_handler(angle_info):
     global list_of_data
     list_of_data = angle_info
 
-# ฟังก์ชันหลัก
+# Main function
 if __name__ == "__main__":
-    # Initialize global variable for storing data
     list_of_data = []
-
+    
     # Load templates
-    templates = [
-        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-1block.jpg'),
-        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-3block.jpg'),
-        cv2.imread(r'RoboMaster-SDK\examples\pic\coke-4block.jpg')
+    bottle_templates = [
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5907.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5908.jpg'),
+        cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5909.jpg')  # Use the uploaded image for template matching
     ]
+    chick_templates = [ cv2.imread(r'D:\study\241-251\AI-ROBOT\examples\ass_2\IMG_5905.jpg')]
 
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="ap")
@@ -94,66 +162,33 @@ if __name__ == "__main__":
     ep_gimbal.recenter().wait_for_completed()
     ep_camera.start_video_stream(display=False)
 
-    # the image center constants
     center_x = 1280 / 2
     center_y = 720 / 2
 
     # PID controller constants
-    p = -0.607  # -0.609 -0.65
+    p = -0.607
     i = 0
     d = -0.00135
 
     accumulate_err_x = 0
     accumulate_err_y = 0
     data_pith_yaw = []
-    prev_box = None  # เก็บ bounding box จากเฟรมก่อนหน้า
-    alpha = 0.2  # ปัจจัยการ smooth
+    prev_bottle_box = None  # Initial previous box
+    prev_chick_box = None
+    alpha = 0.2  # Smoothing factor
     count = 0
 
     while True:
         after_time = time.time()
         img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
         
-        # ตรวจจับ Coke และทำ smoothing bounding box
-        result_frame, prev_box = process_image(img, templates, prev_box)
+        # Detect water bottle and smooth bounding box
+        result_bottle_frame, prev_bottle_box = process_bottle_image(img, bottle_templates, prev_bottle_box)
+        result_chick_frame, prev_chick_box = process_chick_image(img, chick_templates, prev_chick_box)
 
-        if prev_box is not None:
-            x, y, w, h = prev_box
-            err_x = center_x - x
-            err_y = center_y - y
-            accumulate_err_x += err_x
-            accumulate_err_y += err_y
-            
-            if count >= 1:
-                # คำนวณความเร็วในการหมุน gimbal โดยใช้ PID
-                speed_x = (
-                    (p * err_x)
-                    + d * ((prev_err_x - err_x) / (prev_time - after_time))
-                    + i * (accumulate_err_x)
-                )
-                speed_y = (
-                    (p * err_y)
-                    + d * ((prev_err_y - err_y) / (prev_time - after_time))
-                    + i * (accumulate_err_y)
-                )
-                ep_gimbal.drive_speed(pitch_speed=-speed_y, yaw_speed=speed_x)
-                data_pith_yaw.append(
-                    list(list_of_data)  # Ensure list_of_data is updated
-                    + [err_x, err_y, round(speed_x, 3), round(speed_y, 3)]
-                )
-
-            count += 1
-            prev_time = time.time()
-            prev_err_x = err_x
-            prev_err_y = err_y
-            time.sleep(0.001)
-        else:
-            # หมุนกลับ center
-            ep_gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
         
-        # แสดงผล
-        cv2.imshow("Coke Can Detection", result_frame)
-
+        # Show the frame with detection
+        cv2.imshow("Water Bottle Detection", result_bottle_frame, result_chick_frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
