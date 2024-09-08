@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from robomaster import robot, vision, blaster
+from sklearn.metrics.pairwise import cosine_similarity
 import time
 
 # Function to detect object (bottle/chick) using HSV color matching and template comparison
@@ -39,6 +40,7 @@ def detect_object(frame, templates, prev_box, lower_hsv, upper_hsv, alpha=0.2):
                     if similarity > best_similarity:
                         best_similarity = similarity
                         best_box = (x, int(y*0.8), int(w*1.2), int(h*4.2))
+    
     # Apply smoothing to the bounding box
     if best_box and best_similarity > 0.5:
         x, y, w, h = best_box

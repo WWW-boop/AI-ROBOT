@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     # Save the captured image to a file
     if img is not None:
-        cv2.imwrite("ass23.jpg", img)
+        cv2.imwrite("bitchass23.jpg", img)
         print("Image captured and saved as 'captured_image.jpg'.")
     else:
         print("Failed to capture image.")
