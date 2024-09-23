@@ -1,7 +1,7 @@
 #60 120 180
-#60cm w = 63 px h = 167 px
-#120cm w = 33 px h = 80 px
-#180cm w = 22 px h = 53 px
+#60cm w = 62 px h = 156 px
+#120cm w = 31 px h = 73 px
+#180cm w = 19 px h = 53 px
 
 import matplotlib.pyplot as plt
 import numpy as np
