@@ -21,8 +21,8 @@ def calculate_pixel_distance_y(k_x_f_y, Y, Z):
 
 # Given values for different distances
 distances = [60, 120, 180]  # cm
-dpx_x_values = [63, 33, 22]  # pixels
-dpx_y_values = [167, 80, 53]  # pixels
+dpx_x_values = [62, 31, 19]  # pixels (width)
+dpx_y_values = [156, 73, 53]  # pixels (height)
 X = 5.8  # cm (width of Coke can)
 Y = 14.6  # cm (height of Coke can)
 
@@ -71,6 +71,13 @@ linear_fit_x = np.polyval(coefficients_x, all_physical_distances)
 coefficients_y = np.polyfit(all_physical_distances, all_pixel_distances_y, 1)
 linear_fit_y = np.polyval(coefficients_y, all_physical_distances)
 
+# Extracting slopes (coefficients[0] is the slope for linear regression)
+slope_x = coefficients_x[0]
+slope_y = coefficients_y[0]
+
+print(f"\nSlope of width graph: {slope_x:.2f} pixels/cm")
+print(f"Slope of height graph: {slope_y:.2f} pixels/cm")
+
 # Plotting
 plt.figure(figsize=(10, 8))
 
@@ -86,7 +93,7 @@ plt.grid(True)
 
 # Width plot
 plt.subplot(3, 1, 2)
-plt.scatter(distances, dpx_x_values, color='blue', label='Measured (pixels)')  # Set measured data same color
+plt.scatter(distances, dpx_x_values, color='blue', label='Measured (pixels)')
 plt.scatter(new_distances[0], predicted_pixel_distances_x[0], color='orange', label='Predicted Width (75 cm)')
 plt.scatter(new_distances[1], predicted_pixel_distances_x[1], color='purple', label='Predicted Width (100 cm)')
 plt.scatter(new_distances[2], predicted_pixel_distances_x[2], color='green', label='Predicted Width (125 cm)')
@@ -99,7 +106,7 @@ plt.grid()
 
 # Height plot
 plt.subplot(3, 1, 3)
-plt.scatter(distances, dpx_y_values, color='blue', label='Measured (pixels)')  # Set measured data same color
+plt.scatter(distances, dpx_y_values, color='blue', label='Measured (pixels)')
 plt.scatter(new_distances[0], predicted_pixel_distances_y[0], color='orange', label='Predicted Height (75 cm)')
 plt.scatter(new_distances[1], predicted_pixel_distances_y[1], color='purple', label='Predicted Height (100 cm)')
 plt.scatter(new_distances[2], predicted_pixel_distances_y[2], color='green', label='Predicted Height (125 cm)')
