@@ -108,7 +108,7 @@ def bro_thinks_its_circle(circles, img):
         print("No circles detected.")
 
 if __name__ == "__main__":
-    image_path = r"C:\Users\lataeq\AI-ROBOT\examples\ass_3\lataeq\pics\agent.jpg"  # Replace with the path to your image
+    image_path = r"C:\Users\lataeq\AI-ROBOT\examples\ass_3\um_actually\pics\agent.jpg"  # Replace with the path to your image
     img = cv2.imread(image_path)
 
     if img is None:
