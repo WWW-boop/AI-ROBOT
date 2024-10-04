@@ -1,6 +1,14 @@
 import time
 from robomaster import robot
 
+
+def tof_data_handler(sub_info): #เอาไว้เช็คข้างหน้าว่า ห่างจากกำแพงทำไร 
+    distance = sub_info
+    global tof_distance
+    tof_distance = distance[0]
+    print("tof1: {0}".format(distance[0]))
+
+
 def filter_ad_data(ad_data):
     filtered_data = []
     smoothing_factor = 0.1  # ค่าอัลฟาสำหรับการกรอง
@@ -36,7 +44,7 @@ def convert_to_cm(voltage):
     
     return cm
 
-def check_wall_left(io_data):
+def check_wall_left(io_data): #sensor ir
     ir_left = io_data[3]  # เซ็นเซอร์ซ้าย
     if ir_left == 0:
         print('Wall left')
@@ -44,7 +52,7 @@ def check_wall_left(io_data):
     else:
         return False
 
-def check_wall_right(io_data):
+def check_wall_right(io_data): #sensor ir
     ir_right = io_data[2]  # เซ็นเซอร์ขวา
     if ir_right == 0:
         print('Wall right')
@@ -52,7 +60,7 @@ def check_wall_right(io_data):
     else:
         return False
 
-def sub_data_handler(sub_info):
+def sub_data_handler(sub_info): #sensor sharp เอาไว้เช็คกำแพงว่าห่างจาก กำแพงทำไร แล้วปรับค่าให้อยู่ตรงกลางตลอดของกำแพง
     io_data, ad_data = sub_info
     global dis_ssL, dis_ssR
 
@@ -60,13 +68,13 @@ def sub_data_handler(sub_info):
     smoothed_values = filter_ad_data(ad_data)
     
     # แปลงค่า ADC เป็นแรงดันไฟฟ้า
-    ssR = smoothed_values[1]
-    ssL = smoothed_values[0]
+    ssR = smoothed_values[1] 
+    ssL = smoothed_values[0] 
     vaR, vaL = convert_to_V(ssR, ssL)
 
     # แปลงค่าแรงดันไฟฟ้าเป็นระยะทาง
-    dis_ssR = convert_to_cm(vaR)
-    dis_ssL = convert_to_cm(vaL)
+    dis_ssR = convert_to_cm(vaR) / 2
+    dis_ssL = convert_to_cm(vaL) / 2 
 
     print(f"Distance ssR: {dis_ssR} cm")
     print(f"Distance ssL: {dis_ssL} cm")
