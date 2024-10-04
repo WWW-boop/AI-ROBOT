@@ -32,8 +32,8 @@ if __name__ == '__main__':
 
     
     ep_chassis.sub_attitude(freq=10, callback=sub_attitude_info_handler)
-    #ep_chassis.move(x=0, y=0, z=45).wait_for_completed()
-    #ep_chassis.move(x=0, y=0, z=-45).wait_for_completed()
+    ep_chassis.move(x=0, y=0, z=45).wait_for_completed()
+    ep_chassis.move(x=0, y=0, z=-45).wait_for_completed()
     time.sleep(60)
     ep_chassis.unsub_attitude()
 
