@@ -88,6 +88,7 @@ maze = [
 ]
 
 
+
 # สร้าง RobotMazeExplorer ด้วยเขาวงกต
 robot = RobotMazeExplorer(maze)
 
