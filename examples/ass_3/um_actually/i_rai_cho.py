@@ -113,6 +113,25 @@ def yaw_ming(yaw):
 
 # --------------------------------------------------
 
+def direction_now(yaw):
+    current_yaw = yaw
+
+    if -45 < current_yaw <= 45:
+        direction_facing = 'N'
+
+    elif 45 < current_yaw < 135:
+        direction_facing = 'E'
+
+    elif 135 < current_yaw < 180 or -180 < yaw < -135:
+        direction_facing = 'S'
+
+    elif -135 < current_yaw <= -45:
+        direction_facing = 'W'
+    
+    return direction_facing
+
+# ---------------------------------------------------
+
 def convert_to_V(ssR, ssL):
     # Assuming the sensor value (ssR, ssL) needs to be converted to voltage.
     ad_data_vo_ssr = (ssR * 3.3) / 1023
