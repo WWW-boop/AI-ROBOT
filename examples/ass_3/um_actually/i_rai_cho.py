@@ -60,10 +60,10 @@ def filter_ad_data(ad_data):
 
 # --------------------------------------------------
 
-def sub_data_handler(sub_info): #sensor sharp เอาไว้เช็คกำแพงว่าห่างจาก กำแพงทำไร แล้วปรับค่าให้อยู่ตรงกลางตลอดของกำแพง
-    io_data, ad_data = sub_info
-    global dis_ssL, dis_ssR
+def sub_data_handler(sub_info):  # sensor sharp เอาไว้เช็คกำแพงว่าห่างจาก กำแพงทำไร แล้วปรับค่าให้อยู่ตรงกลางตลอดของกำแพง
+    global io_data, dis_ssL, dis_ssR
 
+    io_data, ad_data = sub_info
     smoothed_values = filter_ad_data(ad_data)
 
     ssR = smoothed_values[1] 
@@ -75,14 +75,6 @@ def sub_data_handler(sub_info): #sensor sharp เอาไว้เช็คก�
 
     print(f"Distance ssR : {dis_ssR} cm")
     print(f"Distance ssL : {dis_ssL} cm")
-    
-    front_wall = front_wall()
-    wall_left = check_wall_left(io_data)
-    wall_right = check_wall_right(io_data)
-
-    print(f'Front wall : {front_wall}')
-    print(f'Wall left : {wall_left}')
-    print(f'Wall right : {wall_right}')
 
 # --------------------------------------------------
 
@@ -191,7 +183,7 @@ def turn_to(target_direction):
 # --------------------------------------------------
 
 def dfs_solve():
-    global stack, current_direction
+    global stack, current_direction, io_data  # Add io_data here
     while stack:
         x, y = stack.pop()
 
@@ -207,10 +199,10 @@ def dfs_solve():
             print("Wall in front")
 
             # Check for a wall on the left
-            if check_wall_left():
+            if check_wall_left(io_data):  # Pass io_data here
                 print("Wall on left")
                 # If there's a wall on the left, check for a wall on the right
-                if check_wall_right():
+                if check_wall_right(io_data):  # Pass io_data here
                     print("Wall on right too, turning around")
                     turn_around()  # Turn around if there's a wall on both sides
                 else:
@@ -303,7 +295,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("Process interrupted")
     finally:
-            ep_sensor.unsub_adapter()
-            ep_tof.unsub_adapter()
-            ep_chassis.unsub_position()
-            ep_robot.close()
+        ep_sensor.unsub_adapter()
+        ep_tof.unsub_distance()  # Correct method name
+        ep_chassis.unsub_position()
+        ep_robot.close()
