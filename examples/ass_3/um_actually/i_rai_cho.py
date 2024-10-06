@@ -15,27 +15,32 @@ def move_forward():
     print("------- move forward -------")
     for i in range(2):
         ep_robot.chassis.move(x=0.3, y=0, z=0, xy_speed=10).wait_for_completed()
+        ep_robot.chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
+        ep_gimbal.recenter().wait_for_completed()
 
 # --------------------------------------------------
 
 def turn_left():
     print("------- turn left -------")
     ep_robot.chassis.move(x=0, y=0, z=90, z_speed=100).wait_for_completed()
-    time.sleep(0.1)
+    ep_robot.chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
+    ep_gimbal.recenter().wait_for_completed()
 
 # --------------------------------------------------
 
 def turn_right():
     print("------- turn right -------")
     ep_robot.chassis.move(x=0, y=0, z=-91, z_speed=100).wait_for_completed()
-    time.sleep(0.1)
+    ep_robot.chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
+    ep_gimbal.recenter().wait_for_completed()
 
 # --------------------------------------------------
     
 def turn_around():
     print("------- turn around -------")
     ep_robot.chassis.move(x=0, y=0, z=180, z_speed=100).wait_for_completed()
-    time.sleep(0.1)
+    ep_robot.chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
+    ep_gimbal.recenter().wait_for_completed()
 
 # --------------------------------------------------
 
@@ -137,7 +142,7 @@ def convert_to_cm(voltage):
 
 def front_wall():
     if tof_distance is not None:
-        if tof_distance <= 250:
+        if tof_distance <= 240:
             return True
     return False
 
@@ -183,62 +188,60 @@ def turn_to(target_direction):
 # --------------------------------------------------
 
 def dfs_solve():
-    global stack, current_direction, io_data  # Add io_data here
+    global stack, current_direction, io_data
     while stack:
         x, y = stack.pop()
 
-        # Mark the current cell as visited (walkable path)
         maze_map[x, y] = 0
         update_maze_display()
 
-        # Align robot's direction
         yaw_ming(yaw)
 
-        # Check for a wall in front
         if front_wall():
             print("Wall in front")
 
-            # Check for a wall on the left
-            if check_wall_left(io_data):  # Pass io_data here
+            if  check_wall_left() == True and check_wall_right() == True: #ถ้าไม่พบกำแพงข้างหน้า
+                move_forward()
+
+        elif check_wall_left(io_data):
+            if check_wall_left() == True and :
+                turn_around()
+            else:
+                turn_left() #ให้หันซ้าย
                 print("Wall on left")
-                # If there's a wall on the left, check for a wall on the right
-                if check_wall_right(io_data):  # Pass io_data here
+                if check_wall_right(io_data):
                     print("Wall on right too, turning around")
-                    turn_around()  # Turn around if there's a wall on both sides
+                    turn_around()
                 else:
                     print("No wall on right, turning right")
-                    turn_right()  # Turn right if no wall on the right
-                    move_forward()  # Move forward after turning
+                    turn_right()
+                    move_forward()
             else:
                 print("No wall on left, turning left")
-                turn_left()  # Turn left if no wall on the left
-                move_forward()  # Move forward after turning
+                turn_left()
+                move_forward()
 
         else:
             print("No wall in front, moving forward")
-            move_forward()  # Move forward if there's no wall in front
+            move_forward()
 
-        # Add a slight delay to simulate robot's movement
         time.sleep(0.1)
 
-        # Explore in N, E, S, W priority order for the next cells
         for direction in direction_priority:
             dx, dy = direction_map[direction]
             nx, ny = x + dx, y + dy
 
-            # Ensure the next move is within bounds
             if 0 <= nx < maze_size[0] and 0 <= ny < maze_size[1]:
-                # Use sensors to detect walls in real-time
-                if maze_map[nx, ny] == 1 and not front_wall():  # Unvisited and no obstacle
+                if maze_map[nx, ny] == 1 and not front_wall():
                     stack.append((nx, ny))
                     turn_to(direction)
                     move_forward()
-                    time.sleep(0.1)  # Add a small delay to simulate the robot's movement
+                    time.sleep(0.1)
                     break
 
-    # Check if exploration is complete
     if not stack:
         print("Exploration complete.")
+
 
 # --------------------------------------------------
 
