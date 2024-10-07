@@ -1,50 +1,152 @@
 import cv2
 import numpy as np
+import time
+from robomaster import robot, blaster, camera
 
-def process_image(image_path):
-    # โหลดรูปภาพ
-    image = cv2.imread(image_path)
+# PID control parameters
+p = 0.2
+i = 0.01
+d = 0.05
 
-    # สร้าง blank mask ที่มีขนาดเท่ากับรูปภาพ
-    blank = np.zeros(image.shape, dtype='uint8')
+# Smoothing factor for bounding box and gimbal speed
+alpha = 0.7  # Smoothing factor for bounding box
+max_speed = 200  # Maximum speed for gimbal movement
 
-    # แปลงเป็นภาพโทนสีเทา
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+# Function to smooth bounding box coordinates or gimbal speed
+def smooth_bbox(smooth_val, new_val, alpha):
+    return smooth_val * (1 - alpha) + new_val * alpha
 
-    # วาดสี่เหลี่ยมใน blank mask
-    cv2.rectangle(blank, (556, 429), (623, 597), (1, 1, 1), -1)
+# Bottle detection function (blue cap detection)
+def blue_head_culprit(hsv, img):
+    lower_hue_bottle = np.array([99, 122, 88])
+    upper_hue_bottle = np.array([111, 246, 255])
 
-    # ใช้ GaussianBlur เพื่อลด noise
-    blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+    bottle_mask = cv2.inRange(hsv, lower_hue_bottle, upper_hue_bottle)
 
-    # ใช้ Canny edge detection
+    kernel = np.ones((5, 5), np.uint8)
+    bottle_mask = cv2.morphologyEx(bottle_mask, cv2.MORPH_CLOSE, kernel)
+    bottle_mask = cv2.morphologyEx(bottle_mask, cv2.MORPH_OPEN, kernel)
+    bottle_mask = cv2.GaussianBlur(bottle_mask, (5, 5), 0)
+
+    bottle_contours, _ = cv2.findContours(bottle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(bottle_contours) > 0:
+        bottle_contour_max = max(bottle_contours, key=cv2.contourArea)
+
+        if 50 < cv2.contourArea(bottle_contour_max) < 5000:  # Minimum and maximum size
+            approx = cv2.approxPolyDP(bottle_contour_max, 0.02 * cv2.arcLength(bottle_contour_max, True), True)
+            if len(approx) > 4:  # Check the number of sides
+                x, y, w, h = cv2.boundingRect(bottle_contour_max)
+                aspect_ratio = float(w) / h
+                if 0.8 < aspect_ratio < 1.2:  # Check aspect ratio
+                    cv2.drawContours(img, [bottle_contour_max], -1, (0, 255, 0), 2)
+                    cv2.putText(img, "Bottle Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
+
+                    return x, y, w, h  # Return bounding box coordinates
+    return None
+
+def body_arcilic_detect(img):
+    template = cv2.imread("C:\\Users\\User\\Documents\\GitHub\\AI-ROBOT\\examples\\lab4\\template.png", 0)
+    if template is None:
+        print("Template not found!")
+        return None
+
+    # Convert image to grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Detect edges in the image
     edges = cv2.Canny(blurred, 65, 225)
 
-    # หาขอบเขต (contour) ของรูปร่าง
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Load and process template
+    template_blurred = cv2.GaussianBlur(template, (5, 5), 0)
+    template_edges = cv2.Canny(template_blurred, 65, 225)
 
-    # สร้างหน้ากาก (mask) ว่าง ๆ ที่มีขนาดเท่ากับรูปภาพ
-    mask = np.zeros_like(image)
+    # Match template to the contours found in the image
+    res = cv2.matchTemplate(edges, template_edges, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
 
-    # วาด contour บนหน้ากาก
-    cv2.drawContours(mask, contours, -1, (255, 255, 255), thickness=cv2.FILLED)
+    if max_val > 0.5:  # Threshold for template matching
+        h, w = template.shape
+        cv2.rectangle(img, max_loc, (max_loc[0] + w, max_loc[1] + h), (0, 255, 0), 2)
+        cv2.putText(img, "Acrylic Detected", (max_loc[0], max_loc[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
 
-    # ใช้ GaussianBlur กับภาพเทา
-    blur = cv2.GaussianBlur(gray, (99, 99), cv2.BORDER_DEFAULT)
+def main():
+    # Initialize RoboMaster and gimbal
+    ep_robot = robot.Robot()
+    ep_robot.initialize(conn_type="ap")
+    ep_camera = ep_robot.camera
+    ep_gimbal = ep_robot.gimbal
+    ep_blaster = ep_robot.blaster  # Initialize the blaster
+    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
+    ep_gimbal.sub_angle(freq=10)
+    ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
 
-    # คัดลอกภาพต้นฉบับไปยัง blank ตามหน้ากากที่ทำไว้
-    result1 = cv2.copyTo(image, blank, blur)
+    time.sleep(1)  # Wait for initialization
 
-    # ใช้หน้ากากตัดเฉพาะส่วนที่เป็นคน
-    cropped_image = cv2.bitwise_and(image, mask)
+    detected = None
+    detection_start_time = None  # Initialize detection start time
+    detection_duration = 0  # Duration of detection
 
-    # ทำการรวมภาพที่ได้
-    plzgod = cv2.bitwise_and(cropped_image, result1)
+    # Center of the camera view
+    center_x = 1280 / 2
+    center_y = 720 / 2
 
-    # แสดงผลลัพธ์
-    cv2.imshow("Processed Image", plzgod)
-    cv2.waitKey(0)
+    while True:
+        # Get the latest image from RoboMaster camera
+        img = ep_camera.read_cv2_image(strategy="newest")
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        # Detect the bottle using blue cap detection
+        bottle_bbox = blue_head_culprit(hsv, img)
+
+        if bottle_bbox:
+            x, y, w, h = bottle_bbox
+
+            # คำนวณความแตกต่างระหว่างศูนย์กลางของวัตถุและศูนย์กลางของหน้าจอ
+            error_x = (x + w / 2) - center_x
+            error_y = (y + h / 2) - center_y
+
+            # ใช้ PID control ในการปรับ gimbal
+            yaw_speed = p * error_x
+            pitch_speed = p * error_y
+
+            # ปรับค่าให้ความเร็วไม่เกิน max_speed
+            yaw_speed = np.clip(yaw_speed, -max_speed, max_speed)
+            pitch_speed = np.clip(pitch_speed, -max_speed, max_speed)
+
+            # หมุน gimbal ไปยังวัตถุ
+            ep_gimbal.drive_speed(pitch_speed=-pitch_speed, yaw_speed=yaw_speed)
+
+            if detection_start_time is None:
+                detection_start_time = time.time()  # Start the timer
+            detection_duration = time.time() - detection_start_time
+
+            if detection_duration >= 10:  # Check if target is detected for at least 10 seconds
+                body_arcilic_detect(img)  # ตรวจจับเพิ่มเติมด้วย template
+                print("Target detected for 10 seconds! Firing!")
+                #ep_blaster.fire(frequency=1)  # Fire once
+        else:
+            detection_start_time = None  # Reset the detection timer
+            detection_duration = 0  # Reset detection duration
+            # If no target is detected, stop gimbal movement
+            ep_gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
+
+        # Draw crosshair at the center of the screen
+        cv2.line(img, (int(center_x - 10), int(center_y)), (int(center_x + 10), int(center_y)), (255, 255, 255), 1)
+        cv2.line(img, (int(center_x), int(center_y - 10)), (int(center_x), int(center_y + 10)), (255, 255, 255), 1)
+
+        # Display the result in a window
+        cv2.imshow("RoboMaster Detection", img)
+
+        # Press 'q' to quit
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # Clean up
+    ep_camera.stop_video_stream()
+    ep_robot.close()
     cv2.destroyAllWindows()
 
-# เรียกใช้ฟังก์ชัน
-process_image("C:\\Users\\User\\Documents\\GitHub\\AI-ROBOT\\examples\\lab4\\blackarci.jpg")
+if __name__ == "__main__":
+    main()
