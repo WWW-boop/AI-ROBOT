@@ -1,99 +1,94 @@
-import robomaster
-from robomaster import robot
+import cv2
+import numpy as np
 import time
+from robomaster import robot, camera
 
-# ฟังก์ชันการเคลื่อนไหว
-def move_forward():
-    ep_chassis.move(x=0.6, y=0, z=0, xy_speed=1).wait_for_completed()
+def blue_head_culprit(hsv, img):
+    lower_hue_bottle = np.array([99, 122, 88])
+    upper_hue_bottle = np.array([111, 246, 255])
 
-def turn_left():
-    ep_chassis.move(x=0, y=0, z=90, z_speed=30).wait_for_completed()
+    bottle_mask = cv2.inRange(hsv, lower_hue_bottle, upper_hue_bottle)
 
-def turn_right():
-    ep_chassis.move(x=0, y=0, z=-90, z_speed=30).wait_for_completed()
+    kernel = np.ones((5, 5), np.uint8)
+    bottle_mask = cv2.morphologyEx(bottle_mask, cv2.MORPH_CLOSE, kernel)
+    bottle_mask = cv2.morphologyEx(bottle_mask, cv2.MORPH_OPEN, kernel)
+    bottle_mask = cv2.GaussianBlur(bottle_mask, (5, 5), 0)
 
-# ตัวแปรเพื่อเก็บข้อมูลเซ็นเซอร์
-sensor_data = {
-    'io_value': None,
-    'ad_value': None,
-    'distance': None,
-    'tof_status': False
-}
+    bottle_contours, _ = cv2.findContours(bottle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-# ฟังก์ชันการจัดการข้อมูลเซ็นเซอร์ ToF
-def tof_data_handler(sub_info):
-    distance = sub_info[0]
-    sensor_data['distance'] = distance
-    sensor_data['tof_status'] = 100 < distance < 200
-    print(f"ToF Status: {sensor_data['tof_status']}, Distance: {distance} mm")
-    time.sleep(1)
+    if len(bottle_contours) > 0:
+        bottle_contour_max = max(bottle_contours, key=cv2.contourArea)
 
-# ฟังก์ชันการจัดการข้อมูลเซ็นเซอร์
-def sub_data_handler(sub_info):
-    io_data, ad_data = sub_info
-    sensor_data['io_value'] = io_data
-    sensor_data['ad_value'] = ad_data
-    print(f"io value: {io_data}, ad value: {ad_data}")
+        if 50 < cv2.contourArea(bottle_contour_max) < 5000:  # ขนาดขั้นต่ำและสูงสุด
+            approx = cv2.approxPolyDP(bottle_contour_max, 0.02 * cv2.arcLength(bottle_contour_max, True), True)
+            if len(approx) > 4:  # ตรวจสอบจำนวนด้านของรูปร่าง
+                x, y, w, h = cv2.boundingRect(bottle_contour_max)
+                aspect_ratio = float(w) / h
+                if 0.8 < aspect_ratio < 1.2:  # ตรวจสอบอัตราส่วน
+                    cv2.drawContours(img, [bottle_contour_max], -1, (0, 255, 0), 2)
+                    cv2.putText(img, "Bottle Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
 
-# ฟังก์ชันตรวจสอบเส้นทางข้างหน้า
-def front_wall():
-    if sensor_data['ad_value'] is not None:
-        return sensor_data['ad_value'][0] < 100  # สมมุติว่าค่า ad_value ที่มากกว่า 100 หมายถึงมีสิ่งกีดขวาง
-    return False
+    return img
 
-# ฟังก์ชันตรวจสอบทางด้านซ้าย
-def left_wall():
-    if sensor_data['ad_value'] is not None:
-        return sensor_data['ad_value'][3] > 100  # ใช้ sensor ด้านซ้าย
-    return False
 
-# ฟังก์ชันตรวจสอบทางด้านขวา
-def right_wall():
-    if sensor_data['ad_value'] is not None:
-        return sensor_data['ad_value'][2] > 100  # ใช้ sensor ด้านขวา
-    return False
+# ฟังก์ชันหลัก
+def main():
+    choice = input("คุณต้องการใช้งานภาพจากไฟล์หรือกล้อง RoboMaster? (file/robot): ").strip().lower()
 
-# ฟังก์ชันการแก้ปัญหาเขาวงกตแบบตามผนังด้านซ้าย
-def left_wall_following_solve():
-    while True:
-        if not left_wall():
-            print("No left wall, turning left.")
-            turn_left()
-        elif front_wall():
-            print("Front wall detected, turning right.")
-            turn_right()
-        else:
-            print("Following left wall, moving forward.")
-            move_forward()
+    if choice == "file":
+        # อ่านรูปภาพจากไฟล์
+        img_path = "C:\\Users\\User\\Documents\\GitHub\\AI-ROBOT\\examples\\lab4\\agent.jpg"  # เปลี่ยน path นี้ให้ถูกต้อง
+        img = cv2.imread(img_path)
 
-        if sensor_data['tof_status']:
-            print("ToF sensor detected an object within range.")
-            # Logic to handle ToF sensor detection can be added here, if necessary
+        if img is None:
+            print("Error: ไม่สามารถเปิดรูปภาพได้!")
+            return
 
-        time.sleep(1)  # เพิ่ม delay เพื่อป้องกันการทำงานเร็วเกินไป
+        # แปลงรูปภาพเป็น HSV
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-# เริ่มการสำรวจและแก้ปัญหาเขาวงกต
-if __name__ == '__main__':
-    ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="ap")
-    time.sleep(1)
+        # เรียกใช้ฟังก์ชันตรวจจับฝาสีฟ้า
+        result_img = blue_head_culprit(hsv, img)
 
-    ep_chassis = ep_robot.chassis
-    ep_gimbal = ep_robot.gimbal
-    ep_gimbal.recenter().wait_for_completed()
+        # แสดงผลลัพธ์
+        cv2.imshow("Result", result_img)
+        cv2.waitKey(0)  # รอการกดปุ่มเพื่อปิดหน้าต่างแสดงผล
+        cv2.destroyAllWindows()
 
-    ep_sensor = ep_robot.sensor_adaptor
-    ep_sensor.sub_adapter(freq=5, callback=sub_data_handler)
+    elif choice == "robot":
+        # เชื่อมต่อ RoboMaster
+        ep_robot = robot.Robot()
+        ep_robot.initialize(conn_type="ap")
 
-    ep_tof = ep_robot.sensor
-    ep_tof.sub_distance(freq=5, callback=tof_data_handler)
+        ep_camera = ep_robot.camera
+        ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
 
-    try:
-        left_wall_following_solve()
-    except KeyboardInterrupt:
-        print("Process interrupted")
-    finally:
-        ep_sensor.unsub_adapter()
-        ep_tof.unsub_distance()
-        ep_robot.close()
-        print("Robot disconnected.")
+        try:
+            while True:
+                # รับภาพจากกล้อง RoboMaster
+                img = ep_camera.read_cv2_image(strategy="newest")
+
+                # แปลงเป็น HSV
+                hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+                # เรียกใช้ฟังก์ชันตรวจจับฝาสีฟ้า
+                result_img = blue_head_culprit(hsv, img)
+
+                # แสดงผลลัพธ์
+                cv2.imshow("RoboMaster Detection", result_img)
+
+                # กด 'q' เพื่อหยุด
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+        finally:
+            # ปิดวิดีโอสตรีมและปิดการเชื่อมต่อ RoboMaster
+            ep_camera.stop_video_stream()
+            ep_robot.close()
+            cv2.destroyAllWindows()
+
+    else:
+        print("กรุณาเลือก 'file' หรือ 'robot'")
+
+if __name__ == "__main__":
+    main()

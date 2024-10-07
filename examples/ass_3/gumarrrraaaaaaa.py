@@ -45,14 +45,21 @@ def blue_head_culprit(hsv, img):
                     return x, y, w, h  # Return bounding box coordinates
     return None
 
-def body_arcilic_detect(img):
-    template = cv2.imread("C:\\Users\\User\\Documents\\GitHub\\AI-ROBOT\\examples\\lab4\\template.png", 0)
+# Template matching for acrylic detection
+def body_acrylic_detect(img):
+    # Load the template image in grayscale
+    template = cv2.imread("C:\\Users\\User\\Documents\\GitHub\\AI-ROBOT\\jjjjjjj.jpg", 0)
     if template is None:
         print("Template not found!")
         return None
 
-    # Convert image to grayscale
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # Convert input image to grayscale
+    mask = np.zeros(img.shape[:2], dtype="uint8")
+    cv2.rectangle(mask, (0, 0), (1280, 340), 255, -1)
+    blurred_image = cv2.GaussianBlur(img, (99, 99), 0)
+    result = np.where(mask[:, :, np.newaxis] == 255, blurred_image, img)
+
+    gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
     # Detect edges in the image
@@ -60,16 +67,21 @@ def body_arcilic_detect(img):
 
     # Load and process template
     template_blurred = cv2.GaussianBlur(template, (5, 5), 0)
-    template_edges = cv2.Canny(template_blurred, 65, 225)
-
+    template_edges = cv2.Canny(template_blurred, 1, 1)
+    
     # Match template to the contours found in the image
     res = cv2.matchTemplate(edges, template_edges, cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
 
-    if max_val > 0.5:  # Threshold for template matching
-        h, w = template.shape
-        cv2.rectangle(img, max_loc, (max_loc[0] + w, max_loc[1] + h), (0, 255, 0), 2)
+    # Threshold for template matching
+    if max_val > 0.5:
+        height, width = template.shape
+        # Draw rectangle around detected region
+        cv2.rectangle(img, max_loc, (max_loc[0] + width, max_loc[1] + height), (0, 255, 0), 2)
         cv2.putText(img, "Acrylic Detected", (max_loc[0], max_loc[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
+
+    # Display or return the resulting image
+    return img 
 
 def main():
     # Initialize RoboMaster and gimbal
@@ -103,34 +115,41 @@ def main():
         if bottle_bbox:
             x, y, w, h = bottle_bbox
 
-            # คำนวณความแตกต่างระหว่างศูนย์กลางของวัตถุและศูนย์กลางของหน้าจอ
+            # Calculate the error between the center of the object and the center of the screen
             error_x = (x + w / 2) - center_x
             error_y = (y + h / 2) - center_y
 
-            # ใช้ PID control ในการปรับ gimbal
+            # Use PID control to adjust gimbal movement
             yaw_speed = p * error_x
             pitch_speed = p * error_y
 
-            # ปรับค่าให้ความเร็วไม่เกิน max_speed
+            # Ensure the speed does not exceed max_speed
             yaw_speed = np.clip(yaw_speed, -max_speed, max_speed)
             pitch_speed = np.clip(pitch_speed, -max_speed, max_speed)
 
-            # หมุน gimbal ไปยังวัตถุ
+            # Move the gimbal towards the object
             ep_gimbal.drive_speed(pitch_speed=-pitch_speed, yaw_speed=yaw_speed)
 
             if detection_start_time is None:
                 detection_start_time = time.time()  # Start the timer
             detection_duration = time.time() - detection_start_time
 
-            if detection_duration >= 10:  # Check if target is detected for at least 10 seconds
-                body_arcilic_detect(img)  # ตรวจจับเพิ่มเติมด้วย template
-                print("Target detected for 10 seconds! Firing!")
+            # พิมพ์เวลาในการตรวจจับ
+            print(f"Detection duration: {detection_duration}")
+
+            if detection_duration >= 5:  # Check if target is detected for at least 5 seconds
+                body_acrylic_detect(img)  # Additional detection using template matching
+                print("Target detected for 5 seconds! Firing!")
                 #ep_blaster.fire(frequency=1)  # Fire once
         else:
             detection_start_time = None  # Reset the detection timer
             detection_duration = 0  # Reset detection duration
             # If no target is detected, stop gimbal movement
             ep_gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
+
+
+        # เพิ่มการตรวจจับ acrylic body ตลอดเวลาทุกครั้งในลูป
+        body_acrylic_detect(img)
 
         # Draw crosshair at the center of the screen
         cv2.line(img, (int(center_x - 10), int(center_y)), (int(center_x + 10), int(center_y)), (255, 255, 255), 1)
@@ -147,6 +166,7 @@ def main():
     ep_camera.stop_video_stream()
     ep_robot.close()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()
