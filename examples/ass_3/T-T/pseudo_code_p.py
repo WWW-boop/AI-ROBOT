@@ -131,9 +131,14 @@ def check_wall_right(io_data): #sensor ir
 #         จริง
 #     ถ้าไม่
 #         ไม่จริง
+
 def front_wall_tof(sub_info): #เอาไว้เช็คข้างหน้าว่ามีกำแพงไหม
+ 
+    
     distance = sub_info
-    if distance < 350:
+    global  tof_distance
+    tof_distance = distance[0]
+    if tof_distance < 350:
         return True
     return False
 
@@ -166,13 +171,134 @@ def sub_attitude_info_handler(attitude_info):
     else:
         direction = 'Unknown'  # กรณีที่ไม่ตรงกับเงื่อนไขใดๆ
 
-    print("Current direction: {}".format(direction))
-    
+    return direction
 
+# เริ่มการสำรวจ maze
+visited_positions = set()
+intersections = []
 
+x, y = 0, 0  # จุดเริ่มต้น
+direction = 'N'  # เริ่มจากมองไปทิศเหนือ
 
+# ฟังก์ชันตรวจสอบตำแหน่งที่เดินด้วย DFS
+def dfs_walk(x, y, direction, visited_positions, intersections):
+    if direction == 'N':
+        if not front_wall_tof():  # ตรวจสอบว่าด้านหน้าว่าง
+            move_forward()
+            y += 1  # เดินไปทางทิศเหนือ
+            visited_positions.add((x, y))
+        elif not check_wall_left():  # ถ้าไม่มีผนังด้านซ้าย
+            turn_left()
+            move_forward()
+            x -= 1  # ไปทางซ้าย (ทิศตะวันตก)
+            visited_positions.add((x, y))
+            direction = 'W'
+        elif not check_wall_right():  # ถ้าไม่มีผนังด้านขวา
+            turn_right()
+            move_forward()
+            x += 1  # ไปทางขวา (ทิศตะวันออก)
+            visited_positions.add((x, y))
+            direction = 'E'
+        else:
+            turn_around()  # ถ้าเจอผนังทั้งสามด้าน
+            backtrack(intersections)  # เดินถอยหลังไปจุดแยกก่อนหน้า
 
+    elif direction == 'E':
+        if not front_wall_tof():
+            move_forward()
+            x += 1  # เดินไปทางทิศตะวันออก
+            visited_positions.add((x, y))
+        elif not check_wall_left():
+            turn_left()
+            move_forward()
+            y += 1  # ไปทางซ้าย (ทิศเหนือ)
+            visited_positions.add((x, y))
+            direction = 'N'
+        elif not check_wall_right():
+            turn_right()
+            move_forward()
+            y -= 1  # ไปทางขวา (ทิศใต้)
+            visited_positions.add((x, y))
+            direction = 'S'
+        else:
+            turn_around()
+            backtrack(intersections)
 
+    elif direction == 'S':
+        if not front_wall_tof():
+            move_forward()
+            y -= 1  # เดินไปทางทิศใต้
+            visited_positions.add((x, y))
+        elif not check_wall_left():
+            turn_left()
+            move_forward()
+            x += 1  # ไปทางซ้าย (ทิศตะวันออก)
+            visited_positions.add((x, y))
+            direction = 'E'
+        elif not check_wall_right():
+            turn_right()
+            move_forward()
+            x -= 1  # ไปทางขวา (ทิศตะวันตก)
+            visited_positions.add((x, y))
+            direction = 'W'
+        else:
+            turn_around()
+            backtrack(intersections)
+
+    elif direction == 'W':
+        if not front_wall_tof():
+            move_forward()
+            x -= 1  # เดินไปทางทิศตะวันตก
+            visited_positions.add((x, y))
+        elif not check_wall_left():
+            turn_left()
+            move_forward()
+            y -= 1  # ไปทางซ้าย (ทิศใต้)
+            visited_positions.add((x, y))
+            direction = 'S'
+        elif not check_wall_right():
+            turn_right()
+            move_forward()
+            y += 1  # ไปทางขวา (ทิศเหนือ)
+            visited_positions.add((x, y))
+            direction = 'N'
+        else:
+            turn_around()
+            backtrack(intersections)
+
+# ฟังก์ชัน backtrack เมื่อไม่มีทางไป
+def backtrack(intersections):
+    # กลับไปจุดแยกล่าสุด
+    if intersections:
+        intersection = intersections.pop()
+        x, y = intersection
+        # เดินกลับไปยังตำแหน่งนั้น
+        move_to(x, y)
+
+def move_to(x, y, current_x, current_y, visited_positions, direction_stack):
+    while current_x != x or current_y != y:
+        # ใช้ข้อมูลจาก stack เพื่อติดตามทิศทางที่เคยเดิน
+        last_direction = direction_stack.pop()  # ดึงทิศทางล่าสุดจาก stack
+
+        if last_direction == 'N':
+            turn_around()  # ถ้าเคยเดินขึ้นเหนือ, ต้องหมุนกลับไปทิศใต้
+            move_forward()  # เดินกลับหนึ่งก้าว
+            current_y -= 1  # ปรับตำแหน่ง y เมื่อถอยกลับ
+        elif last_direction == 'E':
+            turn_around()  # ถ้าเคยเดินไปตะวันออก, ต้องหมุนกลับทิศตะวันตก
+            move_forward()
+            current_x -= 1
+        elif last_direction == 'S':
+            turn_around()  # ถ้าเคยเดินลงใต้, ต้องหมุนกลับทิศเหนือ
+            move_forward()
+            current_y += 1
+        elif last_direction == 'W':
+            turn_around()  # ถ้าเคยเดินไปตะวันตก, ต้องหมุนกลับทิศตะวันออก
+            move_forward()
+            current_x += 1
+        
+        # เช็คว่ากลับมาถึงจุดที่ต้องการหรือยัง
+        visited_positions.add((current_x, current_y))
 
 
 
@@ -183,11 +309,14 @@ if __name__ == '__main__':
     ep_robot.initialize(conn_type="ap")
     ep_chassis = ep_robot.chassis
 
-
+    dfs_walk(x, y, direction, visited_positions, intersections)
     ep_sensor = ep_robot.sensor_adaptor
     ep_sensor.sub_adapter(freq=10, callback=sub_data_handler)  # เรียกใช้ callback ทุก 5 ครั้งต่อวินาที
     ep_chassis.sub_attitude(freq=10, callback=sub_attitude_info_handler)
-    time.sleep(200)  # ใช้งานเซ็นเซอร์ 200 วินาที
+    ep_tof = ep_robot.sensor
+    ep_tof.sub_distance(freq=10, callback=front_wall_tof)
+
+    
     ep_sensor.unsub_adapter()
     ep_chassis.unsub_attitude()
     ep_robot.close()
