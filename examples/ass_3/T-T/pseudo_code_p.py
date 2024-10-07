@@ -131,9 +131,14 @@ def check_wall_right(io_data): #sensor ir
 #         จริง
 #     ถ้าไม่
 #         ไม่จริง
+
 def front_wall_tof(sub_info): #เอาไว้เช็คข้างหน้าว่ามีกำแพงไหม
+ 
+    
     distance = sub_info
-    if distance < 350:
+    global  tof_distance
+    tof_distance = distance[0]
+    if tof_distance < 350:
         return True
     return False
 
@@ -167,96 +172,13 @@ def sub_attitude_info_handler(attitude_info):
         direction = 'Unknown'  # กรณีที่ไม่ตรงกับเงื่อนไขใดๆ
 
     return direction
-    
-import robomaster
-from robomaster import robot
-import time
 
-# เริ่มต้นหุ่นยนต์ RoboMaster
-ep_robot = robot.Robot()
-ep_robot.initialize(conn_type="ap")
+# เริ่มการสำรวจ maze
+visited_positions = set()
+intersections = []
 
-# ฟังก์ชันกรองข้อมูล ADC
-def filter_ad_data(ad_data):
-    filtered_data = []
-    smoothing_factor = 0.1  
-    previous_value = 0  
-
-    for reading in ad_data:
-        current_value = smoothing_factor * previous_value + (1 - smoothing_factor) * reading
-        filtered_data.append(current_value)
-        previous_value = current_value
-
-    return filtered_data
-
-# แปลง ADC เป็นแรงดันไฟฟ้า
-def convert_to_V(ssR, ssL):
-    ad_data_vo_ssr = (ssR * 3.3) / 1023
-    ad_data_vo_ssl = (ssL * 3.3) / 1023
-    return ad_data_vo_ssr, ad_data_vo_ssl
-
-# แปลงแรงดันไฟฟ้าเป็นระยะทาง
-def convert_to_cm(voltage):
-    if 2.2 <= voltage < 3.2:
-        cm = (voltage - 4.30764) / -0.3846
-    elif 1.4 <= voltage < 2.2:
-        cm = (voltage - 3.2) / -0.2
-    elif 0.8 <= voltage < 1.4:
-        cm = (voltage - 1.87) / -0.067
-    elif 0.4 <= voltage < 0.8:
-        cm = (voltage - 1.344) / -0.034
-    else:
-        if voltage >= 3.2:
-            cm = (voltage - 4.30764) / -0.3846
-        elif voltage < 0.4:
-            cm = (voltage - 1.344) / -0.034
-    
-    return cm
-
-# ตรวจสอบเซนเซอร์ผนังซ้าย
-def check_wall_left(io_data): 
-    ir_left = io_data[3]  # เซ็นเซอร์ซ้าย
-    return ir_left == 0  # ถ้าเจอกำแพงซ้ายจะคืนค่า True
-
-# ตรวจสอบเซนเซอร์ผนังขวา
-def check_wall_right(io_data):
-    ir_right = io_data[2]  # เซ็นเซอร์ขวา
-    return ir_right == 0  # ถ้าเจอกำแพงขวาจะคืนค่า True
-
-# ตรวจสอบเซนเซอร์กำแพงหน้า
-def front_wall_tof(sub_info):
-    distance = sub_info
-    return distance < 350  # ถ้าใกล้เกินไปถือว่ามีกำแพงด้านหน้า
-
-# ฟังก์ชันเคลื่อนที่ไปข้างหน้า
-def move_forward():
-    ep_robot.chassis.move(x=0.3, y=0, z=0, xy_speed=10).wait_for_completed()
-
-# ฟังก์ชันหมุนไปทางซ้าย
-def turn_left():
-    ep_robot.chassis.move(x=0, y=0, z=90, z_speed=80).wait_for_completed()
-
-# ฟังก์ชันหมุนไปทางขวา
-def turn_right():
-    ep_robot.chassis.move(x=0, y=0, z=-90, z_speed=80).wait_for_completed()
-
-# ฟังก์ชันกลับหลังหัน
-def turn_around():
-    ep_robot.chassis.move(x=0, y=0, z=180, z_speed=80).wait_for_completed()
-
-# ฟังก์ชันกำหนดทิศตามค่า yaw
-def sub_attitude_info_handler(attitude_info):
-    yaw = attitude_info  # รับค่าจาก attitude_info
-    if -45 < yaw < 45:
-        return 'N'
-    elif 45 <= yaw < 135:
-        return 'E'
-    elif 135 <= yaw < 180 or -180 < yaw <= -135:
-        return 'S'
-    elif -135 < yaw < -45:
-        return 'W'
-    else:
-        return 'Unknown'
+x, y = 0, 0  # จุดเริ่มต้น
+direction = 'N'  # เริ่มจากมองไปทิศเหนือ
 
 # ฟังก์ชันตรวจสอบตำแหน่งที่เดินด้วย DFS
 def dfs_walk(x, y, direction, visited_positions, intersections):
@@ -378,12 +300,7 @@ def move_to(x, y, current_x, current_y, visited_positions, direction_stack):
         # เช็คว่ากลับมาถึงจุดที่ต้องการหรือยัง
         visited_positions.add((current_x, current_y))
 
-# เริ่มการสำรวจ maze
-visited_positions = set()
-intersections = []
 
-x, y = 0, 0  # จุดเริ่มต้น
-direction = 'N'  # เริ่มจากมองไปทิศเหนือ
 
 
 # เริ่มต้นโปรแกรมหลัก
@@ -399,7 +316,7 @@ if __name__ == '__main__':
     ep_tof = ep_robot.sensor
     ep_tof.sub_distance(freq=10, callback=front_wall_tof)
 
-    time.sleep(200)  # ใช้งานเซ็นเซอร์ 200 วินาที
+    
     ep_sensor.unsub_adapter()
     ep_chassis.unsub_attitude()
     ep_robot.close()
