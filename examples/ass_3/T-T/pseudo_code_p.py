@@ -168,7 +168,12 @@ def sub_attitude_info_handler(attitude_info):
 
     return direction
     
+# เริ่มการสำรวจ maze
+visited_positions = set()
+intersections = []
 
+x, y = 0, 0  # จุดเริ่มต้น
+direction = 'N'  # เริ่มจากมองไปทิศเหนือ
 
 # ฟังก์ชันตรวจสอบตำแหน่งที่เดินด้วย DFS
 def dfs_walk(x, y, direction, visited_positions, intersections):
@@ -290,12 +295,7 @@ def move_to(x, y, current_x, current_y, visited_positions, direction_stack):
         # เช็คว่ากลับมาถึงจุดที่ต้องการหรือยัง
         visited_positions.add((current_x, current_y))
 
-# เริ่มการสำรวจ maze
-visited_positions = set()
-intersections = []
 
-x, y = 0, 0  # จุดเริ่มต้น
-direction = 'N'  # เริ่มจากมองไปทิศเหนือ
 
 
 # เริ่มต้นโปรแกรมหลัก
