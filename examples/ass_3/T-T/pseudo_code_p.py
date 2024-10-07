@@ -131,9 +131,14 @@ def check_wall_right(io_data): #sensor ir
 #         จริง
 #     ถ้าไม่
 #         ไม่จริง
+
 def front_wall_tof(sub_info): #เอาไว้เช็คข้างหน้าว่ามีกำแพงไหม
+ 
+    
     distance = sub_info
-    if distance < 350:
+    global  tof_distance
+    tof_distance = distance[0]
+    if tof_distance < 350:
         return True
     return False
 
@@ -167,7 +172,7 @@ def sub_attitude_info_handler(attitude_info):
         direction = 'Unknown'  # กรณีที่ไม่ตรงกับเงื่อนไขใดๆ
 
     return direction
-    
+
 # เริ่มการสำรวจ maze
 visited_positions = set()
 intersections = []
