@@ -311,7 +311,7 @@ if __name__ == '__main__':
     ep_tof = ep_robot.sensor
     ep_tof.sub_distance(freq=10, callback=front_wall_tof)
 
-    time.sleep(200)  # ใช้งานเซ็นเซอร์ 200 วินาที
+    
     ep_sensor.unsub_adapter()
     ep_chassis.unsub_attitude()
     ep_robot.close()
