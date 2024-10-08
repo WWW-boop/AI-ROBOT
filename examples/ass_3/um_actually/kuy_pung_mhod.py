@@ -5,7 +5,6 @@ import numpy as np
 
 
 current_position = (3, 3)  # Starting at position (3, 3)
-direction_facing = 'N'
 visited_positions = []
 branches = []
 criminals = []
@@ -14,9 +13,9 @@ criminals = []
 
 def move_forward():
     
-    ep_robot.chassis.move(x=0.6, y=0, z=0, xy_speed=10).wait_for_completed()
+    ep_robot.chassis.move(x=0.6, y=0, z=0, xy_speed=1).wait_for_completed()
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
-    update_direction()
+    # update_direction()
     print("------- move forward -------")
 
 # --------------------------------------------------
@@ -25,7 +24,7 @@ def turn_left():
     
     ep_robot.chassis.move(x=0, y=0, z=90, z_speed=100).wait_for_completed()
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
-    update_direction('left')
+    # update_direction('left')
     print("------- turn left -------")
 
 # --------------------------------------------------
@@ -34,7 +33,7 @@ def turn_right():
     
     ep_robot.chassis.move(x=0, y=0, z=-91, z_speed=100).wait_for_completed()
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
-    update_direction('right')
+    # update_direction('right')
     print("------- turn right -------")
 
 # --------------------------------------------------
@@ -43,7 +42,7 @@ def turn_around():
 
     ep_robot.chassis.move(x=0, y=0, z=180, z_speed=100).wait_for_completed()
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
-    update_direction('back')
+    # update_direction('back')
     print("------- turn around -------")
 
 # --------------------------------------------------
@@ -55,15 +54,15 @@ def stop_moving():
 
 # --------------------------------------------------
 
-tof_distance = None  # Initialize globally
+ # Initialize globally
 
 def tof_data_handler(sub_info):
     global tof_distance
-    if sub_info and len(sub_info) > 0:  # Ensure valid TOF data is received
-        tof_distance = sub_info[0]  # Assuming TOF sensor data is a list, and [0] is the distance
-        print(f"TOF distance: {tof_distance}")
-    else:
-        tof_distance = float('inf')  # Default to no wall if data is invalid
+    distance = sub_info
+    tof_distance = distance[0]
+     # Assuming TOF sensor data is a list, and [0] is the distance
+    print(f"TOF distance: {tof_distance}")
+      # Default to no wall if data is invalid
 # Default to a large value indicating no wall is detected
 
 
@@ -84,10 +83,13 @@ def filter_ad_data(ad_data):
 # --------------------------------------------------
 
 def sub_data_handler(sub_info):  # sensor sharp เอาไว้เช็คกำแพงว่าห่างจาก กำแพงทำไร แล้วปรับค่าให้อยู่ตรงกลางตลอดของกำแพง
-    global io_data, dis_ssL, dis_ssR
+    global io_data, dis_ssL, dis_ssR, ir_left, ir_right
 
     io_data, ad_data = sub_info
     smoothed_values = filter_ad_data(ad_data)
+
+    ir_right = io_data[2]
+    ir_left = io_data[3]
 
     ssR = smoothed_values[1] 
     ssL = smoothed_values[0] 
@@ -98,6 +100,7 @@ def sub_data_handler(sub_info):  # sensor sharp เอาไว้เช็ค�
 
     print(f"Distance ssR : {dis_ssR} cm")
     print(f"Distance ssL : {dis_ssL} cm")
+    print(io_data)
     
 
 # --------------------------------------------------
@@ -106,6 +109,22 @@ def sub_attitude_handler(attitude_info):
     yaw, pitch, roll = attitude_info
     #yaw ดริฟรถ<z> pitch backflip ตีลังกา 3 ตะหลบ<y> roll  หมุนพวงมาลัย<x>
     print("chassis attitude: yaw:{0}, pitch:{1}, roll:{2} ".format(yaw, pitch, roll))
+    global direction_facing
+    current_yaw = yaw
+
+    if -45 < current_yaw <= 45:
+        direction_facing = 'N'
+
+    elif 45 < current_yaw < 135:
+        direction_facing = 'E'
+
+    elif 135 < current_yaw < 180 or -180 < yaw < -135:
+        direction_facing = 'S'
+
+    elif -135 < current_yaw <= -45:
+        direction_facing = 'W'
+    print(direction_facing)
+
 
 # --------------------------------------------------
 
@@ -124,23 +143,21 @@ def update_direction(turn):
 
 # --------------------------------------------------
 
-direction_facing = 'N'
+# def direction_now(yaw):
+#     global direction_facing
+#     current_yaw = yaw
 
-def direction_now(yaw):
-    global direction_facing
-    current_yaw = yaw
+#     if -45 < current_yaw <= 45:
+#         direction_facing = 'N'
 
-    if -45 < current_yaw <= 45:
-        direction_facing = 'N'
+#     elif 45 < current_yaw < 135:
+#         direction_facing = 'E'
 
-    elif 45 < current_yaw < 135:
-        direction_facing = 'E'
+#     elif 135 < current_yaw < 180 or -180 < yaw < -135:
+#         direction_facing = 'S'
 
-    elif 135 < current_yaw < 180 or -180 < yaw < -135:
-        direction_facing = 'S'
-
-    elif -135 < current_yaw <= -45:
-        direction_facing = 'W'
+#     elif -135 < current_yaw <= -45:
+#         direction_facing = 'W'
 
 # ---------------------------------------------------
 
@@ -216,23 +233,20 @@ def front_wall():
 
 # --------------------------------------------------
 
-def check_wall_left(io_data): #sensor ir
-    ir_left = io_data[3]  # เซ็นเซอร์ซ้าย
+def check_wall_left(): #sensor ir
+                          # เซ็นเซอร์ซ้าย
     if ir_left == 0:
         print('Wall left')
         return True
-    else:
-        return False
+    return False
 
 # --------------------------------------------------
 
-def check_wall_right(io_data): #sensor ir
-    ir_right = io_data[2]  # เซ็นเซอร์ขวา
+def check_wall_right(): #sensor ir  # เซ็นเซอร์ขวา
     if ir_right == 0:
         print('Wall right')
         return True
-    else:
-        return False
+    return False
 
 # --------------------------------------------------
 
@@ -266,9 +280,13 @@ def adjust_front(): #sensor ir
 # --------------------------------------------------
 
 def adjust_pos():
-    adjust_front()
-    adjust_right()
-    adjust_left()
+    if front_wall():
+        adjust_front()
+    if check_wall_right():    
+        adjust_right()
+    if check_wall_left():
+        adjust_left()
+
 
 # --------------------------------------------------
 
@@ -292,6 +310,7 @@ def check_terrorist():
 # --------------------------------------------------
 
 def move_back_to_branch():
+    global current_position
     # Move back to the last branch point when no valid moves
     last_branch = branches.pop()
     current_position = last_branch
@@ -307,6 +326,13 @@ def move_back_to_branch():
 def branch():
     if front_wall() and check_wall_left() and check_wall_right() == False:
         return True
+    elif front_wall() and check_wall_left() == False:
+        return True
+    elif check_wall_right() and check_wall_left() == False:
+        return True
+    elif front_wall() and check_wall_right() == False:
+        return True
+    return False
 
 # --------------------------------------------------
 
@@ -322,9 +348,9 @@ def maze_explored():
         if direction_facing == 'N':
             if branch():
                 branches.append(current_position)
-            if front_wall() and current_position in visited_positions:
-                if check_wall_left() and current_position in visited_positions:
-                    if check_wall_right() and current_position in visited_positions:
+            if front_wall() or current_position in visited_positions:
+                if check_wall_left() or current_position in visited_positions:
+                    if check_wall_right() or current_position in visited_positions:
                         # adjust_pos()
                         turn_around()
                         move_back_to_branch()
@@ -343,9 +369,9 @@ def maze_explored():
         elif direction_facing == 'W':
             if branch():
                 branches.append(current_position)
-            if check_wall_right() and current_position in visited_positions:
-                if front_wall() and current_position in visited_positions:
-                    if check_wall_left() and current_position in visited_positions:
+            if check_wall_right() or current_position in visited_positions:
+                if front_wall() or current_position in visited_positions:
+                    if check_wall_left() or current_position in visited_positions:
                         # adjust_pos()
                         turn_around()
                         move_back_to_branch()
@@ -354,15 +380,20 @@ def maze_explored():
                         turn_left()
                         process_movement()
                 else:
+                    turn_right()
                     # adjust_pos()
                     process_movement()
+            else:
+                turn_right()
+                    # adjust_pos()
+                process_movement()
 
         elif direction_facing == 'E':
             if branch():
                 branches.append(current_position)
-            if check_wall_left() and current_position in visited_positions:
-                if front_wall() and current_position in visited_positions:
-                    if check_wall_right() and current_position in visited_positions:
+            if check_wall_left() or current_position in visited_positions:
+                if front_wall() or current_position in visited_positions:
+                    if check_wall_right() or current_position in visited_positions:
                         # adjust_pos()
                         turn_around()
                         move_back_to_branch()
@@ -373,13 +404,16 @@ def maze_explored():
                 else:
                     # adjust_pos()
                     process_movement()
+            else:
+                turn_left()
+                process_movement()
 
         elif direction_facing == 'S':
             if branch():
                 branches.append(current_position)
-            if check_wall_right() and current_position in visited_positions:
-                if check_wall_left() and current_position in visited_positions:
-                    if front_wall() and current_position in visited_positions:
+            if check_wall_right() or current_position in visited_positions:
+                if check_wall_left() or current_position in visited_positions:
+                    if front_wall() or current_position in visited_positions:
                         # adjust_pos()
                         turn_around()
                         move_back_to_branch()
@@ -390,6 +424,9 @@ def maze_explored():
                     # adjust_pos()
                     turn_left()
                     process_movement()
+            else:
+                turn_right()
+                process_movement()
 
 # --------------------------------------------------
 
@@ -412,11 +449,10 @@ if __name__ == '__main__':
 
     ep_tof = ep_robot.sensor
     ep_tof.sub_distance(freq=10, callback=tof_data_handler)
-    ep_sensor = ep_robot.sensor
-    ep_sensor.sub_distance(freq=5, callback=sub_data_handler)
 
     ep_gimbal = ep_robot.gimbal
     ep_gimbal.recenter().wait_for_completed()
+    time.sleep(3)
 
     try:
         maze_explored()  # Main exploration logic
