@@ -2,17 +2,17 @@ import time
 from robomaster import robot
 
 
-def tof_data_handler(sub_info): #เอาไว้เช็คข้างหน้าว่า ห่างจากกำแพงทำไร 
+def front_wall_tof(sub_info): #เอาไว้เช็คข้างหน้าว่ามีกำแพงไหม
     distance = sub_info
-    global tof_distance
-    tof_distance = distance[0]
-    print("tof1: {0}".format(distance[0]))
+    if distance < 350:
+        return True
+    return False
 
 
 def filter_ad_data(ad_data):
     filtered_data = []
-    smoothing_factor = 0.1  # ค่าอัลฟาสำหรับการกรอง
-    previous_value = 0  # กำหนดค่าเริ่มต้นของ previous_value
+    smoothing_factor = 0.1  
+    previous_value = 0  
 
     for reading in ad_data:
         current_value = smoothing_factor * previous_value + (1 - smoothing_factor) * reading
@@ -22,7 +22,7 @@ def filter_ad_data(ad_data):
     return filtered_data
 
 def convert_to_V(ssR, ssL):
-    # Assuming the sensor value (ssR, ssL) needs to be converted to voltage.
+    
     ad_data_vo_ssr = (ssR * 3.3) / 1023
     ad_data_vo_ssl = (ssL * 3.3) / 1023
     return ad_data_vo_ssr, ad_data_vo_ssl
