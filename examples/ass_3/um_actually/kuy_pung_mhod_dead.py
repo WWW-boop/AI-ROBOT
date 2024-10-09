@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-current_position = (3, 0)  # Starting at position (3, 3)
+current_position = (3, 1)  # Starting at position (3, 3)
 visited_positions = []
 dont_go_position = [(0, 3), (3, 0), (7, 3)]
 branches = []
@@ -15,6 +15,7 @@ criminals = []
 def move_forward():
     
     ep_robot.chassis.move(x=0.6, y=0, z=0, xy_speed=0.5).wait_for_completed()
+
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
     # update_direction()
     print("------- move forward -------")
@@ -239,26 +240,26 @@ def check_wall_right(): #sensor ir  # เซ็นเซอร์ขวา
 
 def adjust_left(): #sensor ir
     global err_dis_l
-    err_dis_l = (dis_ssL-23)/100
+    err_dis_l = (dis_ssL-20)/100
     if abs(err_dis_l) >= 0.01:
-        ep_chassis.move(x=0, y=err_dis_l/100, z=0, xy_speed=0.5).wait_for_completed()
+        ep_chassis.move(x=0, y=err_dis_l/100, z=0, xy_speed=5).wait_for_completed()
 
 # --------------------------------------------------
 
 def adjust_right(): #sensor ir
     global err_dis_r
-    err_dis_r = (dis_ssR-23)/100
+    err_dis_r = (dis_ssR-20)/100
     if abs(err_dis_r) >= 0.01:
-        ep_chassis.move(x=0, y=err_dis_r/100, z=0, xy_speed=0.5).wait_for_completed()
+        ep_chassis.move(x=0, y=err_dis_r/100, z=0, xy_speed=5).wait_for_completed()
 # --------------------------------------------------
 def adjust_position_LR():
-    if abs(dis_ssL - dis_ssR) >= 0.1:
+    if abs(dis_ssL - dis_ssR) >= 0.01:
         if dis_ssL > dis_ssR:
-            move = (dis_ssL - dis_ssR) / 2 /100
-            ep_robot.chassis.move(x=0, y=move, z=0, xy_speed=0.5).wait_for_completed()
+            move = ((dis_ssL - dis_ssR) /2)/100
+            ep_robot.chassis.move(x=0, y=move, z=0, xy_speed=5).wait_for_completed()
         else:
-            move = (dis_ssR - dis_ssL) / 2/100
-            ep_robot.chassis.move(x=0, y=-move, z=0, xy_speed=0.5).wait_for_completed()
+            move = ((dis_ssR - dis_ssL) /2)/100
+            ep_robot.chassis.move(x=0, y=-move, z=0, xy_speed=5).wait_for_completed()
         
 
 
@@ -269,7 +270,7 @@ def adjust_front(): #sensor ir
     err_dis_f = (tof_distance-200)/1000
     if abs(err_dis_f) >= 0.01:
         move = err_dis_f
-        ep_robot.chassis.move(x=move/1000, y=0, z=0, xy_speed=0.5).wait_for_completed()
+        ep_robot.chassis.move(x=move/1000, y=0, z=0, xy_speed=5).wait_for_completed()
 
 # --------------------------------------------------
 
