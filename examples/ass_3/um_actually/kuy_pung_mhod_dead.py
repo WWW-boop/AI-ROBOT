@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-current_position = (3, 3)  # Starting at position (3, 3)
+current_position = (3, 0)  # Starting at position (3, 3)
 visited_positions = []
+dont_go_position = [(0, 3), (3, 0), (7, 3)]
 branches = []
 criminals = []
 
@@ -125,21 +126,6 @@ def sub_attitude_handler(attitude_info):
         direction_facing = 'W'
     
     print(direction_facing)
-
-
-# --------------------------------------------------
-
-def update_direction(turn):
-    global direction_facing
-    directions = ['N', 'E', 'S', 'W']
-    current_index = directions.index(direction_facing)
-    
-    if turn == 'left':
-        direction_facing = directions[(current_index - 1) % 4]
-    elif turn == 'right':
-        direction_facing = directions[(current_index + 1) % 4]
-    elif turn == 'back':
-        direction_facing = directions[(current_index + 2) % 4]
 
 
 # --------------------------------------------------
@@ -300,32 +286,8 @@ def adjust_pos():
 
 # --------------------------------------------------
 
-# def turn_to(target_direction):
-#     global current_direction
-#     if current_direction == target_direction:
-#         return
-#     elif (current_direction, target_direction) in [('N', 'E'), ('E', 'S'), ('S', 'W'), ('W', 'N')]:
-#         turn_right()
-#     elif (current_direction, target_direction) in [('N', 'W'), ('W', 'S'), ('S', 'E'), ('E', 'N')]:
-#         turn_left()
-#     else:
-#         turn_around()
-#     current_direction = target_direction
-
-# --------------------------------------------------
-
 def check_terrorist():
     pass
-
-# --------------------------------------------------
-
-# def move_back_to_branch():
-#     global current_position
-#     # Move back to the last branch point when no valid moves
-#     last_branch = branches.pop()
-#     current_position = last_branch
-#     print(f"Moving back to branch at {last_branch}")
-
 
 # --------------------------------------------------
 
@@ -352,8 +314,6 @@ def branch():
 
 def process_movement():
     move_forward()
-#     update_position()  # Update position after moving
-#     print(f"Current Position: {current_position}")  # Print updated position
 
 # # --------------------------------------------------
 
@@ -367,9 +327,9 @@ def maze_explored():
         if direction_facing == 'N':
             # if branch():
             #     branches.append(current_position)
-            if front_wall() or (x, y+1) in visited_positions:
-                if check_wall_left() or (x-1, y) in visited_positions:
-                    if check_wall_right() or (x+1, y) in visited_positions:
+            if front_wall() or (x, y+1) in visited_positions or (x, y+1) in dont_go_position:
+                if check_wall_left() or (x-1, y) in visited_positions or (x-1, y) in dont_go_position:
+                    if check_wall_right() or (x+1, y) in visited_positions or (x+1, y) in dont_go_position:
                         adjust_pos()
                         turn_around()
                         maze_reverse_explored()
@@ -395,9 +355,9 @@ def maze_explored():
         elif direction_facing == 'W':
             # if branch():
             #     branches.append(current_position)
-            if check_wall_right() or (x, y+1) in visited_positions:
-                if front_wall() or (x-1, y) in visited_positions:
-                    if check_wall_left() or (x, y-1) in visited_positions:
+            if check_wall_right() or (x, y+1) in visited_positions or (x, y+1) in dont_go_position:
+                if front_wall() or (x-1, y) in visited_positions or (x-1, y) in dont_go_position:
+                    if check_wall_left() or (x, y-1) in visited_positions or (x, y-1) in dont_go_position:
                         adjust_pos()
                         turn_around()
                         # move_back_to_branch()
@@ -425,9 +385,9 @@ def maze_explored():
         elif direction_facing == 'E':
             # if branch():
             #     branches.append(current_position)
-            if check_wall_left() or (x, y+1) in visited_positions:
-                if front_wall() or (x+1, y) in visited_positions:
-                    if check_wall_right() or (x, y-1) in visited_positions:
+            if check_wall_left() or (x, y+1) in visited_positions or (x, y+1) in dont_go_position:
+                if front_wall() or (x+1, y) in visited_positions or (x+1, y) in dont_go_position:
+                    if check_wall_right() or (x, y-1) in visited_positions or (x, y-1) in dont_go_position:
                         adjust_pos()
                         turn_around()
                         # move_back_to_branch()
@@ -454,9 +414,9 @@ def maze_explored():
         elif direction_facing == 'S':
             # if branch():
             #     branches.append(current_position)
-            if check_wall_right() or (x-1, y) in visited_positions:
-                if check_wall_left() or (x+1, y) in visited_positions:
-                    if front_wall() or (x, y-1) in visited_positions:
+            if check_wall_right() or (x-1, y) in visited_positions or (x-1, y) in dont_go_position:
+                if check_wall_left() or (x+1, y) in visited_positions or (x+1, y) in dont_go_position:
+                    if front_wall() or (x, y-1) in visited_positions or (x, y-1) in dont_go_position:
                         adjust_pos()
                         turn_around()
                         # move_back_to_branch()
@@ -625,21 +585,12 @@ def maze_reverse_explored():
                 update_position()  # Update position after moving
                 print(f"Current Position: {current_position}")
 
-# --------------------------------------------------
-
-# def sub_position_handler(position_info):
-#     x, y, z = position_info
-#     print("chassis position: x:{0}, y:{1}, time:{2}".format(x, y, z))
-
-# --------------------------------------------------
-
 if __name__ == '__main__':
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="ap")
 
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_attitude(freq=10, callback=sub_attitude_handler)
-    # ep_chassis.sub_position(freq=10, callback=sub_position_handler)
 
     ep_sensor = ep_robot.sensor_adaptor
     ep_sensor.sub_adapter(freq=10, callback=sub_data_handler)
