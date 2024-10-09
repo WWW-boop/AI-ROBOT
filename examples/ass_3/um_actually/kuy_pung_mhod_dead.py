@@ -488,15 +488,22 @@ def maze_reverse_explored():
         time.sleep(0.1)
         x, y = current_position
         if direction_facing == 'S':
+            if branch():
+                if not front_wall() or (x, y-1) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}")
+                elif not check_wall_left() or (x+1, y) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}") 
+                elif not check_wall_right() or (x-1, y) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}")
+                        # move_back_to_branch()
             #     branches.append(current_position)
             if front_wall() or (x, y-1) not in visited_positions:
                 if check_wall_left() or (x+1, y) not in visited_positions:
                     if check_wall_right() or (x-1, y) not in visited_positions:
-                        adjust_pos()
-                        if branch():
-                            maze_explored()# Update position after moving
-                            print(f"Current Position: {current_position}")
-                        # move_back_to_branch()
+                        break
                     else:
                         adjust_pos()
                         turn_right()
@@ -516,14 +523,20 @@ def maze_reverse_explored():
                 print(f"Current Position: {current_position}")
 
         elif direction_facing == 'E':
+            if branch():
+                if not check_wall_right() or (x, y-1) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}")
+                elif not front_wall() or (x+1, y) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}") 
+                elif not check_wall_left() or (x, y+1) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}")
             if check_wall_right() or (x, y-1) not in visited_positions:
                 if front_wall() or (x+1, y) not in visited_positions:
                     if check_wall_left() or (x, y+1) not in visited_positions:
-                        if branch():
-                            maze_explored()
-                        # move_back_to_branch()
-                        # Update position after moving
-                            print(f"Current Position: {current_position}")
+                        break
                     else:
                         adjust_pos()
                         turn_left()
@@ -543,8 +556,16 @@ def maze_reverse_explored():
                 print(f"Current Position: {current_position}")
 
         elif direction_facing == 'W':
-            # if branch():
-            #     branches.append(current_position)
+            if branch():
+                if not check_wall_left() or (x, y-1) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}")
+                elif not front_wall() or (x-1, y) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}") 
+                elif not check_wall_right() or (x, y+1) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}")
             if check_wall_left() or (x, y-1) not in visited_positions:
                 if front_wall() or (x-1, y) not in visited_positions:
                     if check_wall_right() or (x, y+1) not in visited_positions:
@@ -569,9 +590,16 @@ def maze_reverse_explored():
                 print(f"Current Position: {current_position}")
 
         elif direction_facing == 'N':
-            # if branch():
             if branch():
-                maze_explored()
+                if not check_wall_right() or (x+1, y) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}")
+                elif not check_wall_left() or (x-1, y) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}") 
+                elif not front_wall() or (x, y+1) not in visited_positions:
+                    maze_explored()# Update position after moving
+                    print(f"Current Position: {current_position}")
             #     branches.append(current_position)
             if check_wall_right() or (x+1, y) not in visited_positions:
                 if check_wall_left() or (x-1, y) not in visited_positions:
