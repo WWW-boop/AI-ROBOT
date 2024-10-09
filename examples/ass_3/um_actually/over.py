@@ -1,21 +1,169 @@
 from robomaster import robot
 import time
-import matplotlib.pyplot as plt
+import cv2
 import numpy as np
+import time
+from robomaster import robot, blaster, camera
 
 
-current_position = (3, 1)  # Starting at position (3, 3)
+current_position = (3, 3)  # Starting at position (3, 3)
 visited_positions = []
-dont_go_position = [(0, 3), (3, 0), (7, 3)]
 branches = []
 criminals = []
+p = 0.2
+i = 0.01
+d = 0.05
+
+alpha = 0.7  # Smoothing factor for bounding box
+max_speed = 200
+
+def smooth_bbox(smooth_val, new_val, alpha):
+    return smooth_val * (1 - alpha) + new_val * alpha
+
+def blue_head_culprit(hsv, img):
+    lower_hue_bottle = np.array([99, 122, 88])
+    upper_hue_bottle = np.array([111, 246, 255])
+
+    bottle_mask = cv2.inRange(hsv, lower_hue_bottle, upper_hue_bottle)
+
+    kernel = np.ones((5, 5), np.uint8)
+    bottle_mask = cv2.morphologyEx(bottle_mask, cv2.MORPH_CLOSE, kernel)
+    bottle_mask = cv2.morphologyEx(bottle_mask, cv2.MORPH_OPEN, kernel)
+    bottle_mask = cv2.GaussianBlur(bottle_mask, (5, 5), 0)
+
+    bottle_contours, _ = cv2.findContours(bottle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(bottle_contours) > 0:
+        bottle_contour_max = max(bottle_contours, key=cv2.contourArea)
+
+        if 50 < cv2.contourArea(bottle_contour_max) < 5000:  # Minimum and maximum size
+            approx = cv2.approxPolyDP(bottle_contour_max, 0.02 * cv2.arcLength(bottle_contour_max, True), True)
+            if len(approx) > 4:  # Check the number of sidesq
+                x, y, w, h = cv2.boundingRect(bottle_contour_max)
+                aspect_ratio = float(w) / h
+                if 0.8 < aspect_ratio < 1.2:  # Check aspect ratio
+                    cv2.drawContours(img, [bottle_contour_max], -1, (0, 255, 0), 2)
+                    cv2.putText(img, "Bottle Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
+
+                    return x, y, w, h  # Return bounding box coordinates
+    return None
+
+
+def body_acrylic_detect(img):
+    template = cv2.imread(r"C:\Users\lataeq\AI-ROBOT\jjjjjjj.jpg", 0)
+    if template is None:
+        print("Template not found!")
+        return None
+
+    mask = np.zeros(img.shape[:2], dtype="uint8")
+    cv2.rectangle(mask, (0, 0), (1280, 340), 255, -1)
+    blurred_image = cv2.GaussianBlur(img, (99, 99), 0)
+    result = np.where(mask[:, :, np.newaxis] == 255, blurred_image, img)
+
+    gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    edges = cv2.Canny(blurred, 65, 225)
+    template_blurred = cv2.GaussianBlur(template, (5, 5), 0)
+    template_edges = cv2.Canny(template_blurred, 1, 1)
+    
+    res = cv2.matchTemplate(edges, template_edges, cv2.TM_CCOEFF_NORMED)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+
+    if max_val > 0.5:
+        height, width = template.shape
+        cv2.rectangle(img, max_loc, (max_loc[0] + width, max_loc[1] + height), (0, 255, 0), 2)
+        cv2.putText(img, "Acrylic Detected", (max_loc[0], max_loc[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
+
+    return img 
+
+
+def gai_detect(hsv, img):
+    x_start, y_start, x_end, y_end = 320, 320, 960, 670  
+    roi = img[y_start:y_end, x_start:x_end]
+    hsv_roi = hsv[y_start:y_end, x_start:x_end]
+
+    lower_hue_gai = np.array([29, 235, 85])
+    upper_hue_gai = np.array([37, 255, 255])
+    gai_mask = cv2.inRange(hsv_roi, lower_hue_gai, upper_hue_gai)
+
+    kernel = np.ones((5, 5), np.uint8)
+    gai_mask = cv2.GaussianBlur(gai_mask, (9, 9), 0)
+    gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_CLOSE, kernel)
+    gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_OPEN, kernel)
+
+    contours, _ = cv2.findContours(gai_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area > 100:  
+            x, y, w, h = cv2.boundingRect(cnt)
+            peri = cv2.arcLength(cnt, True)
+            approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
+
+            if len(approx) > 5: 
+                cv2.drawContours(roi, [approx], -1, (0, 255, 0), 3)
+                cv2.putText(roi, "Chicken Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+    return img
+
+def main():
+    time.sleep(1)  
+
+    detected = None
+    detection_start_time = None  
+    detection_duration = 0  
+
+    center_x = 1280 / 2
+    center_y = 720 / 2
+
+    while True:
+        img = ep_camera.read_cv2_image(strategy="newest")
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        bottle_bbox = blue_head_culprit(hsv, img)
+
+        if bottle_bbox:
+            x, y, w, h = bottle_bbox
+
+            error_x = (x + w / 2) - center_x
+            error_y = (y + h / 2) - center_y
+
+            yaw_speed = p * error_x
+            pitch_speed = p * error_y
+
+            yaw_speed = np.clip(yaw_speed, -max_speed, max_speed)
+            pitch_speed = np.clip(pitch_speed, -max_speed, max_speed)
+
+            ep_gimbal.drive_speed(pitch_speed=-pitch_speed, yaw_speed=yaw_speed)
+
+            if detection_start_time is None:
+                detection_start_time = time.time()  
+            detection_duration = time.time() - detection_start_time  
+
+            if detection_duration > 3:
+                cv2.putText(img, "Firing!", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                check_terrorist(current_position)
+        else:
+            detection_start_time = None
+            detection_duration = 0
+
+            # Recenter the gimbal when no bottle is detected
+            ep_gimbal.recenter(pitch_speed=100, yaw_speed=100).wait_for_completed()
+
+        img = body_acrylic_detect(img)
+        img = gai_detect(hsv, img)
+
+        cv2.imshow("Detection", img)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
 # --------------------------------------------------
 
 def move_forward():
     
     ep_robot.chassis.move(x=0.6, y=0, z=0, xy_speed=0.5).wait_for_completed()
-
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
     # update_direction()
     print("------- move forward -------")
@@ -131,6 +279,21 @@ def sub_attitude_handler(attitude_info):
 
 # --------------------------------------------------
 
+def update_direction(turn):
+    global direction_facing
+    directions = ['N', 'E', 'S', 'W']
+    current_index = directions.index(direction_facing)
+    
+    if turn == 'left':
+        direction_facing = directions[(current_index - 1) % 4]
+    elif turn == 'right':
+        direction_facing = directions[(current_index + 1) % 4]
+    elif turn == 'back':
+        direction_facing = directions[(current_index + 2) % 4]
+
+
+# --------------------------------------------------
+
 # def direction_now(yaw):
 #     global direction_facing
 #     current_yaw = yaw
@@ -153,9 +316,7 @@ def update_position():
     global current_position
 
     x, y = current_position
-    # boundary_reached = False
 
-    # Check boundary conditions for each direction
     if direction_facing == 'N':
         current_position = (x, y + 1)
     elif direction_facing == 'E':
@@ -164,17 +325,6 @@ def update_position():
         current_position = (x, y - 1)
     elif direction_facing == 'W':
         current_position = (x - 1, y)
-    # else:
-    #     boundary_reached = True
-    #     print(f"Boundary reached! Returning to the latest branch at {branches[-1] if branches else 'start'}.")
-
-    # if boundary_reached:
-    #     # Return to the latest branch if the boundary is reached
-    #     if branches:
-    #         current_position = branches.pop()  # Move back to the last branch
-    #     else:
-    #         print("No branches to return to, staying at the current position.")
-    
     visited_positions.append(current_position)
     print(f"Current Position: {current_position}")
 
@@ -240,26 +390,26 @@ def check_wall_right(): #sensor ir  # เซ็นเซอร์ขวา
 
 def adjust_left(): #sensor ir
     global err_dis_l
-    err_dis_l = (dis_ssL-20)/100
+    err_dis_l = (dis_ssL-23)/100
     if abs(err_dis_l) >= 0.01:
-        ep_chassis.move(x=0, y=err_dis_l/100, z=0, xy_speed=5).wait_for_completed()
+        ep_chassis.move(x=0, y=err_dis_l/100, z=0, xy_speed=0.5).wait_for_completed()
 
 # --------------------------------------------------
 
 def adjust_right(): #sensor ir
     global err_dis_r
-    err_dis_r = (dis_ssR-20)/100
+    err_dis_r = (dis_ssR-23)/100
     if abs(err_dis_r) >= 0.01:
-        ep_chassis.move(x=0, y=err_dis_r/100, z=0, xy_speed=5).wait_for_completed()
+        ep_chassis.move(x=0, y=err_dis_r/100, z=0, xy_speed=0.5).wait_for_completed()
 # --------------------------------------------------
 def adjust_position_LR():
-    if abs(dis_ssL - dis_ssR) >= 0.01:
+    if abs(dis_ssL - dis_ssR) >= 0.1:
         if dis_ssL > dis_ssR:
-            move = ((dis_ssL - dis_ssR) /2)/100
-            ep_robot.chassis.move(x=0, y=move, z=0, xy_speed=5).wait_for_completed()
+            move = (dis_ssL - dis_ssR) / 2 /100
+            ep_robot.chassis.move(x=0, y=move, z=0, xy_speed=0.5).wait_for_completed()
         else:
-            move = ((dis_ssR - dis_ssL) /2)/100
-            ep_robot.chassis.move(x=0, y=-move, z=0, xy_speed=5).wait_for_completed()
+            move = (dis_ssR - dis_ssL) / 2/100
+            ep_robot.chassis.move(x=0, y=-move, z=0, xy_speed=0.5).wait_for_completed()
         
 
 
@@ -270,7 +420,7 @@ def adjust_front(): #sensor ir
     err_dis_f = (tof_distance-200)/1000
     if abs(err_dis_f) >= 0.01:
         move = err_dis_f
-        ep_robot.chassis.move(x=move/1000, y=0, z=0, xy_speed=5).wait_for_completed()
+        ep_robot.chassis.move(x=move/1000, y=0, z=0, xy_speed=0.5).wait_for_completed()
 
 # --------------------------------------------------
 
@@ -287,8 +437,32 @@ def adjust_pos():
 
 # --------------------------------------------------
 
+# def turn_to(target_direction):
+#     global current_direction
+#     if current_direction == target_direction:
+#         return
+#     elif (current_direction, target_direction) in [('N', 'E'), ('E', 'S'), ('S', 'W'), ('W', 'N')]:
+#         turn_right()
+#     elif (current_direction, target_direction) in [('N', 'W'), ('W', 'S'), ('S', 'E'), ('E', 'N')]:
+#         turn_left()
+#     else:
+#         turn_around()
+#     current_direction = target_direction
+
+# --------------------------------------------------
+
 def check_terrorist():
-    pass
+    print(f"Terrorist detected and shot at position: {position}")
+
+# --------------------------------------------------
+
+# def move_back_to_branch():
+#     global current_position
+#     # Move back to the last branch point when no valid moves
+#     last_branch = branches.pop()
+#     current_position = last_branch
+#     print(f"Moving back to branch at {last_branch}")
+
 
 # --------------------------------------------------
 
@@ -315,6 +489,8 @@ def branch():
 
 def process_movement():
     move_forward()
+#     update_position()  # Update position after moving
+#     print(f"Current Position: {current_position}")  # Print updated position
 
 # # --------------------------------------------------
 
@@ -328,9 +504,9 @@ def maze_explored():
         if direction_facing == 'N':
             # if branch():
             #     branches.append(current_position)
-            if front_wall() or (x, y+1) in visited_positions or (x, y+1) in dont_go_position:
-                if check_wall_left() or (x-1, y) in visited_positions or (x-1, y) in dont_go_position:
-                    if check_wall_right() or (x+1, y) in visited_positions or (x+1, y) in dont_go_position:
+            if front_wall() or (x, y+1) in visited_positions:
+                if check_wall_left() or (x-1, y) in visited_positions:
+                    if check_wall_right() or (x+1, y) in visited_positions:
                         adjust_pos()
                         turn_around()
                         maze_reverse_explored()
@@ -356,9 +532,9 @@ def maze_explored():
         elif direction_facing == 'W':
             # if branch():
             #     branches.append(current_position)
-            if check_wall_right() or (x, y+1) in visited_positions or (x, y+1) in dont_go_position:
-                if front_wall() or (x-1, y) in visited_positions or (x-1, y) in dont_go_position:
-                    if check_wall_left() or (x, y-1) in visited_positions or (x, y-1) in dont_go_position:
+            if check_wall_right() or (x, y+1) in visited_positions:
+                if front_wall() or (x-1, y) in visited_positions:
+                    if check_wall_left() or (x, y-1) in visited_positions:
                         adjust_pos()
                         turn_around()
                         # move_back_to_branch()
@@ -386,9 +562,9 @@ def maze_explored():
         elif direction_facing == 'E':
             # if branch():
             #     branches.append(current_position)
-            if check_wall_left() or (x, y+1) in visited_positions or (x, y+1) in dont_go_position:
-                if front_wall() or (x+1, y) in visited_positions or (x+1, y) in dont_go_position:
-                    if check_wall_right() or (x, y-1) in visited_positions or (x, y-1) in dont_go_position:
+            if check_wall_left() or (x, y+1) in visited_positions:
+                if front_wall() or (x+1, y) in visited_positions:
+                    if check_wall_right() or (x, y-1) in visited_positions:
                         adjust_pos()
                         turn_around()
                         # move_back_to_branch()
@@ -415,9 +591,9 @@ def maze_explored():
         elif direction_facing == 'S':
             # if branch():
             #     branches.append(current_position)
-            if check_wall_right() or (x-1, y) in visited_positions or (x-1, y) in dont_go_position:
-                if check_wall_left() or (x+1, y) in visited_positions or (x+1, y) in dont_go_position:
-                    if front_wall() or (x, y-1) in visited_positions or (x, y-1) in dont_go_position:
+            if check_wall_right() or (x-1, y) in visited_positions:
+                if check_wall_left() or (x+1, y) in visited_positions:
+                    if front_wall() or (x, y-1) in visited_positions:
                         adjust_pos()
                         turn_around()
                         # move_back_to_branch()
@@ -449,22 +625,15 @@ def maze_reverse_explored():
         time.sleep(0.1)
         x, y = current_position
         if direction_facing == 'S':
-            if branch():
-                if not front_wall() or (x, y-1) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}")
-                elif not check_wall_left() or (x+1, y) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}") 
-                elif not check_wall_right() or (x-1, y) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}")
-                        # move_back_to_branch()
             #     branches.append(current_position)
             if front_wall() or (x, y-1) not in visited_positions:
                 if check_wall_left() or (x+1, y) not in visited_positions:
                     if check_wall_right() or (x-1, y) not in visited_positions:
-                        break
+                        adjust_pos()
+                        if branch():
+                            maze_explored()# Update position after moving
+                            print(f"Current Position: {current_position}")
+                        # move_back_to_branch()
                     else:
                         adjust_pos()
                         turn_right()
@@ -484,20 +653,14 @@ def maze_reverse_explored():
                 print(f"Current Position: {current_position}")
 
         elif direction_facing == 'E':
-            if branch():
-                if not check_wall_right() or (x, y-1) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}")
-                elif not front_wall() or (x+1, y) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}") 
-                elif not check_wall_left() or (x, y+1) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}")
             if check_wall_right() or (x, y-1) not in visited_positions:
                 if front_wall() or (x+1, y) not in visited_positions:
                     if check_wall_left() or (x, y+1) not in visited_positions:
-                        break
+                        if branch():
+                            maze_explored()
+                        # move_back_to_branch()
+                        # Update position after moving
+                            print(f"Current Position: {current_position}")
                     else:
                         adjust_pos()
                         turn_left()
@@ -517,16 +680,8 @@ def maze_reverse_explored():
                 print(f"Current Position: {current_position}")
 
         elif direction_facing == 'W':
-            if branch():
-                if not check_wall_left() or (x, y-1) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}")
-                elif not front_wall() or (x-1, y) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}") 
-                elif not check_wall_right() or (x, y+1) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}")
+            # if branch():
+            #     branches.append(current_position)
             if check_wall_left() or (x, y-1) not in visited_positions:
                 if front_wall() or (x-1, y) not in visited_positions:
                     if check_wall_right() or (x, y+1) not in visited_positions:
@@ -551,16 +706,9 @@ def maze_reverse_explored():
                 print(f"Current Position: {current_position}")
 
         elif direction_facing == 'N':
+            # if branch():
             if branch():
-                if not check_wall_right() or (x+1, y) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}")
-                elif not check_wall_left() or (x-1, y) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}") 
-                elif not front_wall() or (x, y+1) not in visited_positions:
-                    maze_explored()# Update position after moving
-                    print(f"Current Position: {current_position}")
+                maze_explored()
             #     branches.append(current_position)
             if check_wall_right() or (x+1, y) not in visited_positions:
                 if check_wall_left() or (x-1, y) not in visited_positions:
@@ -586,12 +734,26 @@ def maze_reverse_explored():
                 update_position()  # Update position after moving
                 print(f"Current Position: {current_position}")
 
+# --------------------------------------------------
+
+# def sub_position_handler(position_info):
+#     x, y, z = position_info
+#     print("chassis position: x:{0}, y:{1}, time:{2}".format(x, y, z))
+
+# --------------------------------------------------
+
 if __name__ == '__main__':
+    main()
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="ap")
-
+    ep_camera = ep_robot.camera
+    ep_gimbal = ep_robot.gimbal
+    ep_blaster = ep_robot.blaster
+    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
+    ep_gimbal.sub_angle(freq=10)
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_attitude(freq=10, callback=sub_attitude_handler)
+    # ep_chassis.sub_position(freq=10, callback=sub_position_handler)
 
     ep_sensor = ep_robot.sensor_adaptor
     ep_sensor.sub_adapter(freq=10, callback=sub_data_handler)
@@ -613,7 +775,10 @@ if __name__ == '__main__':
                 ep_tof.unsub_distance()  # Unsubscribe only if ep_tof exists
             if ep_sensor:
                 ep_sensor.unsub_adapter()  # Unsubscribe adapter only if ep_sensor exists
-            ep_chassis.unsub_attitude()  # Unsubscribe from attitude data
+            ep_chassis.unsub_attitude()
+            ep_camera.stop_video_stream()
+            ep_robot.close()
+            cv2.destroyAllWindows()  # Unsubscribe from attitude data
         except AttributeError as e:
             print(f"Error during unsubscribing: {e}")
         ep_robot.close()  # Ensure the robot connection is closed
