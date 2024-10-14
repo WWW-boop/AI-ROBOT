@@ -109,9 +109,13 @@ def sub_data_handler(sub_info):  # sensor sharp เอาไว้เช็ค�
 # --------------------------------------------------
 
 def sub_attitude_handler(attitude_info):
+    global yaw
     yaw, pitch, roll = attitude_info
     #yaw ดริฟรถ<z> pitch backflip ตีลังกา 3 ตะหลบ<y> roll  หมุนพวงมาลัย<x>
     # print("chassis attitude: yaw:{0}, pitch:{1}, roll:{2} ".format(yaw, pitch, roll))
+    
+    
+def facing():
     global direction_facing
     current_yaw = yaw
 
@@ -186,7 +190,8 @@ def check_wall_right(): #sensor ir  # เซ็นเซอร์ขวา
     return False
 
 def map_now():
-    sub_attitude_handler()
+    global pos_now,action_state
+    facing()
     state()
     if direction_facing == 'N':
         if action_state == 'forward':
