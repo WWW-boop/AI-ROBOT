@@ -16,7 +16,6 @@ map = [
 init_row, init_col = 3, 3
 pos_now = [init_row, init_col]
 direction_facing = None
-status_logic = None
 
 # ------------------- action -----------------------
 # --------------------------------------------------
@@ -111,9 +110,6 @@ def sub_data_handler(sub_info):  # sensor sharp เอาไว้เช็ค�
 def sub_attitude_handler(attitude_info):
     global yaw
     yaw, pitch, roll = attitude_info
-    #yaw ดริฟรถ<z> pitch backflip ตีลังกา 3 ตะหลบ<y> roll  หมุนพวงมาลัย<x>
-    # print("chassis attitude: yaw:{0}, pitch:{1}, roll:{2} ".format(yaw, pitch, roll))
-    
     
 def facing():
     global direction_facing
@@ -122,13 +118,13 @@ def facing():
     if -45 < current_yaw <= 45:
         direction_facing = 'N'
 
-    elif 45 < current_yaw < 135:
+    if 45 < current_yaw < 135:
         direction_facing = 'E'
 
-    elif 135 < current_yaw < 180 or -180 < yaw < -135:
+    if 135 < current_yaw < 180 or -180 < yaw < -135:
         direction_facing = 'S'
 
-    elif -135 < current_yaw <= -45:
+    if -135 < current_yaw <= -45:
         direction_facing = 'W'
     
     print(direction_facing)
@@ -189,6 +185,7 @@ def check_wall_right(): #sensor ir  # เซ็นเซอร์ขวา
         return True
     return False
 
+action_state = None
 def map_now():
     global pos_now,action_state
     facing()
@@ -309,21 +306,21 @@ def map_now():
 
 def state():
     global action_state
-    if front_wall == False and check_wall_right == True:
+    if front_wall() == False and check_wall_right() == True:
         stop_moving()
         move_forward()
         action_state = 'forward'
-    elif check_wall_right == False:            
+    elif check_wall_right() == False:            
         stop_moving()
         turn_right()
         move_forward()
         action_state = 'right'
-    elif front_wall == True and check_wall_right == True and check_wall_left == True:
+    elif front_wall() == True and check_wall_right() == True and check_wall_left() == True:
         stop_moving()
         turn_around()
         move_forward()
         action_state = 'around'
-    elif front_wall == True and check_wall_right == True:
+    elif front_wall() == True and check_wall_right() == True:
         stop_moving()
         turn_left()
         move_forward()
@@ -355,7 +352,7 @@ if __name__ == '__main__':
     map[pos_now[0]][pos_now[1]][4] = 1
     try:
         while True:
-            if front_wall is None or check_wall_left is None or check_wall_right is None:
+            if front_wall() is None or check_wall_left() is None or check_wall_right() is None:
                 time.sleep(1)
                 continue
 
