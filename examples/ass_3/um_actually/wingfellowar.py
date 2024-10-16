@@ -1,5 +1,4 @@
 from robomaster import robot
-from robot_detector import RobotDetector
 import time
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,37 +6,57 @@ import numpy as np
 # ------------------- action -----------------------
 # --------------------------------------------------
 
+# Initial position and direction
+now_pos = (1, 3)  # Starting coordinates (x, y)
+direction_facing = 'N'  # Initial direction ('N', 'E', 'S', 'W')
+
+# --------------------------------------------------
+def update_position_on_move():
+    global now_pos
+    if direction_facing == 'N':
+        now_pos = (now_pos[0] + 1, now_pos[1])
+    elif direction_facing == 'E':
+        now_pos = (now_pos[0], now_pos[1] + 1)
+    elif direction_facing == 'S':
+        now_pos = (now_pos[0] - 1, now_pos[1])
+    elif direction_facing == 'W':
+        now_pos = (now_pos[0], now_pos[1] - 1)
+    print(f"New Position: {now_pos}")
+
 def move_forward():
-    
-    ep_robot.chassis.move(x=0.6, y=0, z=0, xy_speed=0.8).wait_for_completed()
+    ep_robot.chassis.move(x=0.6, y=0, z=0, xy_speed=0.7).wait_for_completed()
+    ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
     print("------- move forward -------")
-
-# --------------------------------------------------
+    update_position_on_move()
 
 def turn_left():
-    
+    global direction_facing
     ep_robot.chassis.move(x=0, y=0, z=90, z_speed=100).wait_for_completed()
+    ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
+    direction_facing = {'N': 'W', 'W': 'S', 'S': 'E', 'E': 'N'}[direction_facing]
     print("------- turn left -------")
-
-# --------------------------------------------------
+    print(f"Now facing: {direction_facing}")
 
 def turn_right():
-    
+    global direction_facing
     ep_robot.chassis.move(x=0, y=0, z=-91, z_speed=100).wait_for_completed()
+    ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
-    # update_direction('right')
+    direction_facing = {'N': 'E', 'E': 'S', 'S': 'W', 'W': 'N'}[direction_facing]
     print("------- turn right -------")
+    print(f"Now facing: {direction_facing}")
 
-# --------------------------------------------------
-    
 def turn_around():
-
+    global direction_facing
     ep_robot.chassis.move(x=0, y=0, z=180, z_speed=100).wait_for_completed()
+    ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
-    # update_direction('back')
+    direction_facing = {'N': 'S', 'S': 'N', 'E': 'W', 'W': 'E'}[direction_facing]
     print("------- turn around -------")
+    print(f"Now facing: {direction_facing}")
+
 
 # --------------------------------------------------
 
@@ -84,11 +103,6 @@ def sub_data_handler(sub_info):  # sensor sharp เอาไว้เช็ค�
 
     dis_ssR = convert_to_cm(vaR) / 2
     dis_ssL = convert_to_cm(vaL) / 2 
-
-    # print(f"Distance ssR : {dis_ssR} cm")
-    # print(f"Distance ssL : {dis_ssL} cm")
-    print(io_data)
-    
 
 # --------------------------------------------------
 
@@ -148,6 +162,22 @@ def front_wall():
     if tof_distance is None:
         print("TOF distance not available yet. Assuming no wall.")
         return False  # If no data is available, assume no wall
+    if direction_facing == 'N':
+        if now_pos[0] == 6:
+            print(f"Wall detected at distance: {tof_distance}")
+            return True
+    elif direction_facing == 'W':
+        if now_pos[1] == 1:
+            print(f"Wall detected at distance: {tof_distance}")
+            return True
+    elif direction_facing == 'E':
+        if now_pos[1] == 6:
+            print(f"Wall detected at distance: {tof_distance}")
+            return True
+    elif direction_facing == 'S':
+        if now_pos[0] == 1:
+            print(f"Wall detected at distance: {tof_distance}")
+            return True
     if tof_distance < 350:
         print(f"Wall detected at distance: {tof_distance}")
         return True  # Wall detected
@@ -165,152 +195,52 @@ def check_wall_left(): #sensor ir
 # --------------------------------------------------
 
 def check_wall_right(): #sensor ir  # เซ็นเซอร์ขวา
+    if direction_facing == 'N':
+        if now_pos[1] == 6:
+            print('Wall right')
+            return True
+    elif direction_facing == 'W':
+        if now_pos[0] == 6:
+            print('Wall right')
+            return True
+    elif direction_facing == 'E':
+        if now_pos[0] == 1:
+            print('Wall right')
+            return True
+    elif direction_facing == 'S':
+        if now_pos[1] == 1:
+            print('Wall right')
+            return True
+    # print('Right wall detected due to boundary condition (x or y = 6)')
+    
     if ir_right == 0:
         print('Wall right')
         return True
     return False
 
-# action_state = None
-# def map_now():
-#     global pos_now,action_state
-#     facing()
-#     state()
-#     if direction_facing == 'N':
-#         if action_state == 'forward':
-#             map[pos_now[0]][pos_now[1]][2] = 2
-#             map[pos_now[0]-1][pos_now[1]][4] = 1
-
-#             pos_now = [pos_now[0]-1]
-
-#         if action_state == 'right':
-#             map[pos_now[0]][pos_now[1]+1][4] = 1
-            
-#             pos_now = [pos_now[0],pos_now[1]+1]
-
-#         if action_state == 'around':
-#             map[pos_now[0]][pos_now[1]][0] = 2
-#             map[pos_now[0]][pos_now[1]][1] = 2
-#             map[pos_now[0]][pos_now[1]][2] = 2
-
-#             map[pos_now[0]+1][pos_now[1]][4] = 1
-
-#             pos_now = [pos_now[0]+1,pos_now[1]]
-
-#         if action_state == 'left':
-#             map[pos_now[0]][pos_now[1]][0] = 2
-#             map[pos_now[0]][pos_now[1]][2] = 2
-#             map[pos_now[0]-1][pos_now[1]][4] = 1
-#             pos_now = [pos_now[0],pos_now[1]-1]       
-
-#     if direction_facing =='E':  
-#         if action_state == 'forward':
-#             map[pos_now[0]][pos_now[1]][0] = 2
-#             map[pos_now[0]][pos_now[1]+1][4] = 1
-
-
-#             pos_now = [pos_now[0],pos_now[1]+1]
-    
-#         if action_state == 'right':
-#             map[pos_now[0]+1][pos_now[1]][4] = 1
-            
-#             pos_now = [pos_now[0]+1,pos_now[1]]
-        
-#         if action_state == 'around':
-#             map[pos_now[0]][pos_now[1]][0] = 2
-#             map[pos_now[0]][pos_now[1]][2] = 2
-#             map[pos_now[0]][pos_now[1]][3] = 2
-
-#             map[pos_now[0]][pos_now[1]-1][4] = 1
-
-#             pos_now = [pos_now[0],pos_now[1]-1]
-
-#         if action_state == 'left':
-#             map[pos_now[0]][pos_now[1]][2] = 2 
-#             map[pos_now[0]][pos_now[1]][3] = 2
-#             map[pos_now[0]-1][pos_now[1]][4] = 1
-#             pos_now = [pos_now[0]-1,pos_now[1]]
-
-#     if direction_facing =='S':
-#         if action_state == 'forward':
-#             map[pos_now[0]][pos_now[1]][1] = 2
-#             map[pos_now[0]+1][pos_now[1]][4] = 1
-
-
-#             pos_now = [pos_now[0]+1,pos_now[1]]
-    
-#         if action_state == 'right':
-#             map[pos_now[0]][pos_now[1]-1][4] = 1
-            
-#             pos_now = [pos_now[0],pos_now[1]-1]
-        
-#         if action_state == 'around':
-            
-#             map[pos_now[0]][pos_now[1]][1] = 2
-#             map[pos_now[0]][pos_now[1]][2] = 2 
-#             map[pos_now[0]][pos_now[1]][3] = 2
-
-#             map[pos_now[0]+1][pos_now[1]][4] = 1
-
-#             pos_now = [pos_now[0]+1,pos_now[1]]
-
-#         if action_state == 'left':
-#             map[pos_now[0]][pos_now[1]][1] = 2 
-#             map[pos_now[0]][pos_now[1]][3] = 2
-#             map[pos_now[0]][pos_now[1]+1][4] = 1
-#             pos_now = [pos_now[0],pos_now[1]+1]      
-
-#     if direction_facing =='W':
-#         if action_state == 'forward':
-#             map[pos_now[0]][pos_now[1]][0] = 2
-#             map[pos_now[0]][pos_now[1]-1][4] = 1
-
-
-#             pos_now = [pos_now[0],pos_now[1]-1]
-    
-#         if action_state == 'right':
-#             map[pos_now[0]-1][pos_now[1]][4] = 1
-            
-#             pos_now = [pos_now[0]-1,pos_now[1]]
-        
-#         if action_state == 'around':
-#             map[pos_now[0]][pos_now[1]][0] = 2
-#             map[pos_now[0]][pos_now[1]][1] = 2
-#             map[pos_now[0]][pos_now[1]][3] = 2
-
-#             map[pos_now[0]][pos_now[1]+1][4] = 1
-
-#             pos_now = [pos_now[0],pos_now[1]+1]
-
-#         if action_state == 'left':
-#             map[pos_now[0]][pos_now[1]][1] = 2
-#             map[pos_now[0]][pos_now[1]][0] = 2
-#             map[pos_now[0]+1][pos_now[1]][4] = 1
-#             pos_now = [pos_now[0]+1,pos_now[1]]
-
 # --------------------------------------------------
-
 def adjust_left(): #sensor ir
     global err_dis_l
-    err_dis_l = (dis_ssL-20)/100
+    err_dis_l = (dis_ssL-10)/100
     if abs(err_dis_l) >= 0.01:
-        ep_chassis.move(x=0, y=err_dis_l/100, z=0, xy_speed=5).wait_for_completed()
+        ep_chassis.move(x=0, y=-err_dis_l, z=0, xy_speed=3).wait_for_completed()
 
 # --------------------------------------------------
 
 def adjust_right(): #sensor ir
     global err_dis_r
-    err_dis_r = (dis_ssR-20)/100
+    err_dis_r = (dis_ssR-10)/100
     if abs(err_dis_r) >= 0.01:
-        ep_chassis.move(x=0, y=err_dis_r/100, z=0, xy_speed=5).wait_for_completed()
+        ep_chassis.move(x=0, y=err_dis_r, z=0, xy_speed=3).wait_for_completed()
 # --------------------------------------------------
 def adjust_position_LR():
-    if abs(dis_ssL - dis_ssR) >= 0.01:
+    if abs(dis_ssL - dis_ssR) >= 2:
         if dis_ssL > dis_ssR:
             move = ((dis_ssL - dis_ssR) /2)/100
-            ep_robot.chassis.move(x=0, y=move, z=0, xy_speed=5).wait_for_completed()
+            ep_robot.chassis.move(x=0, y=move, z=0, xy_speed=3).wait_for_completed()
         else:
             move = ((dis_ssR - dis_ssL) /2)/100
-            ep_robot.chassis.move(x=0, y=-move, z=0, xy_speed=5).wait_for_completed()
+            ep_robot.chassis.move(x=0, y=-move, z=0, xy_speed=3).wait_for_completed()
         
 
 
@@ -319,20 +249,21 @@ def adjust_position_LR():
 def adjust_front(): #sensor ir
     global err_dis_f
     err_dis_f = (tof_distance-200)/1000
-    if abs(err_dis_f) >= 0.01:
-        move = err_dis_f
-        ep_robot.chassis.move(x=move, y=0, z=0, xy_speed=5).wait_for_completed()
+    if tof_distance < 400:
+        if abs(err_dis_f) >= 0.01:
+            move = err_dis_f
+            ep_robot.chassis.move(x=move, y=0, z=0, xy_speed=5).wait_for_completed()
 
 # --------------------------------------------------
 
 def adjust_pos():
-    if front_wall():
+    if front_wall() == True:
         adjust_front()
-    if check_wall_right() and not check_wall_left():    
+    if check_wall_right() == True and  check_wall_left() == False:    
         adjust_right()
-    if check_wall_left() and not check_wall_right():    
+    if check_wall_left() == True and  check_wall_right() == False:    
         adjust_left()
-    if check_wall_left() and check_wall_right():
+    if check_wall_left() == True and check_wall_right():
         adjust_position_LR()
 
 def state():
@@ -342,41 +273,35 @@ def state():
         time.sleep(0.5)
         if front_wall() == True and check_wall_right() == True and check_wall_left() == True:
             stop_moving()
-            adjust_pos()
             turn_around()
+            adjust_pos()
             move_forward()
+            adjust_pos()
             action_state = 'around'
         elif front_wall() == False and check_wall_right() == True:
             stop_moving()
-            adjust_pos()
             move_forward()
+            adjust_pos()
             action_state = 'forward'
         elif check_wall_right() == False:            
             stop_moving()
-            adjust_pos()
             turn_right()
+            adjust_pos()
             move_forward()
+            adjust_pos()
             action_state = 'right'
         
         elif front_wall() == True and check_wall_right() == True:
             stop_moving()
-            adjust_pos()
             turn_left()
+            adjust_pos()
             move_forward()
+            adjust_pos()
             action_state = 'turn left'
-
-# def visited(map):
-#     for init_row in range(4):
-#         for init_col in range(4):
-#             if map[init_row][init_col][4] == 0:
-#                 return False
-#     return True
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="ap")
-    detector = RobotDetector()
-
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_attitude(freq=20, callback=sub_attitude_handler)
 
@@ -389,10 +314,8 @@ if __name__ == '__main__':
     ep_gimbal = ep_robot.gimbal
     ep_gimbal.recenter().wait_for_completed()
     time.sleep(1)
-    # map[pos_now[0]][pos_now[1]][4] = 1
     try:
         state()
-        detector.run()
     except KeyboardInterrupt:
         print("Process interrupted by user")
     finally:
