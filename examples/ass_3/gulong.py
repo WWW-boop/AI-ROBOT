@@ -308,6 +308,8 @@ def state():
 p = 0.2
 i = 0.01
 d = 0.05
+alpha = 0.7  # Smoothing factor for bounding box
+max_speed = 200  # Maximum speed for gimbal movement
 
 def blue_head_culprit(hsv, img):
     lower_hue_bottle = np.array([99, 122, 88])
@@ -330,6 +332,7 @@ def blue_head_culprit(hsv, img):
             if len(approx) > 4:  # Check the number of sidesq
                 x, y, w, h = cv2.boundingRect(bottle_contour_max)
                 aspect_ratio = float(w) / h
+
                 if 0.8 < aspect_ratio < 1.2:  # Check aspect ratio
                     cv2.drawContours(img, [bottle_contour_max], -1, (0, 255, 0), 2)
                     cv2.putText(img, "Bottle Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
@@ -350,7 +353,6 @@ def body_acrylic_detect(img):
 
     # ทำการตรวจจับขอบ (Edge detection) เฉพาะส่วน ROI
     edges_roi = cv2.Canny(gray_roi, 44, 138)
-    cv2.imshow("rr", edges_roi)
 
     # หาขอบเขตของวัตถุ
     contours, _ = cv2.findContours(edges_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -361,9 +363,10 @@ def body_acrylic_detect(img):
             if len(cnt) >= 5:  # ฟังก์ชัน fitEllipse ต้องการ contour ที่มีอย่างน้อย 5 จุด
                 ellipse = cv2.fitEllipse(cnt)  # ประมาณวงรีจาก contour
                 cv2.ellipse(roi, ellipse, (0, 255, 0), 2)  # วาดวงรีที่ตรวจพบ
-                return True #,img  # พบวัตถุอะคริลิกและส่งค่า img กับ True กลับ
+                return True  # พบวัตถุอะคริลิก ส่งค่า True กลับ
 
-    #return img, False  # ถ้าไม่พบวัตถุอะคริลิกส่งค่า img กับ False กลับ
+    return False  # ถ้าไม่พบวัตถุอะคริลิก ส่งค่า False กลับ
+
 
 def gai_detect(hsv, img):
     x_start, y_start, x_end, y_end = 320, 320, 960, 670  
@@ -394,8 +397,75 @@ def gai_detect(hsv, img):
                 return True
     #return img
 
+def main():
+    no_detection_start_time = None  # ตัวแปรเก็บเวลาเริ่มต้นเมื่อไม่พบฝาสีฟ้า
+    detection_start_time = None  # ตัวแปรเก็บเวลาเริ่มต้นสำหรับการตรวจจับอคริลิก
+    center_x = 1280 / 2
+    center_y = 720 / 2
+    frame_count = 0  # ตัวนับเฟรมเริ่มต้น
+
+    while True:
+        frame_count += 1
+        if frame_count % 5 != 0:
+            continue
+
+        # อ่านภาพจากกล้อง
+        img = ep_camera.read_cv2_image(strategy="newest")
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        # เรียกฟังก์ชันตรวจจับขวด
+        bottle_bbox = blue_head_culprit(hsv, img)
+
+        if bottle_bbox:  # พบฝาสีฟ้า
+            x, y, w, h = bottle_bbox
+            error_x = (x + w / 2) - center_x
+            error_y = (y + h / 2) - center_y
+
+            yaw_speed = p * error_x
+            pitch_speed = p * error_y
+            yaw_speed = np.clip(yaw_speed, -max_speed, max_speed)
+            pitch_speed = np.clip(pitch_speed, -max_speed, max_speed)
+
+            ep_gimbal.drive_speed(pitch_speed=-pitch_speed, yaw_speed=yaw_speed)
+
+            # รีเซ็ตเวลาเมื่อพบฝาสีฟ้า
+            no_detection_start_time = None
+
+            # ตรวจจับอะคริลิก
+            acrylic_detected = body_acrylic_detect(img)
+
+            if acrylic_detected:  # ถ้าพบวัตถุอะคริลิก
+                if detection_start_time is None:  # ถ้ายังไม่ได้ตั้งเวลาเริ่ม
+                    detection_start_time = time.time()  # ตั้งเวลาเริ่มต้น
+
+                detection_duration = time.time() - detection_start_time  # คำนวณเวลาที่ตรวจจับ
+
+                if detection_duration > 3:  # ตรวจจับนานกว่า 3 วินาที
+                    print("Firing!")  # ถ้าตรวจจับนานกว่า 3 วินาที ยิง!
+                    # ep_blaster.fire()  # คำสั่งยิง (ถ้าใช้กับ blaster จริง)
+            else:
+                # ถ้าไม่เจอวัตถุอะคริลิก รีเซ็ตเวลา
+                detection_start_time = None
+
+        else:  # ไม่พบฝาสีฟ้า
+            if no_detection_start_time is None:  # เริ่มจับเวลา
+                no_detection_start_time = time.time()
+
+            # หากเวลาที่ไม่พบฝาสีฟ้านานกว่า 2 วินาที
+            elif time.time() - no_detection_start_time > 2:
+                print("ไม่พบฝาสีฟ้านานกว่า 2 วินาที, หยุดการทำงาน")
+                break  # ออกจากลูป
+
+    # หยุดการทำงานของกล้อง
+    ep_camera.stop_video_stream()
+    ep_robot.close()
+
+
+
 if __name__ == '__main__':
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="ap")
     ep_chassis = ep_robot.chassis
     ep_gimbal = ep_robot.gimbal
+    ep_camera = ep_robot.camera
+    ep_blaster = ep_robot.blaster
