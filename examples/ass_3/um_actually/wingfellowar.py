@@ -24,7 +24,7 @@ def update_position_on_move():
     print(f"New Position: {now_pos}")
 
 def move_forward():
-    ep_robot.chassis.move(x=0.6, y=0, z=0, xy_speed=0.7).wait_for_completed()
+    ep_robot.chassis.move(x=0.62, y=0, z=0, xy_speed=0.7).wait_for_completed() #0.62 speed 0.7
     ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
     print("------- move forward -------")
@@ -41,7 +41,7 @@ def turn_left():
 
 def turn_right():
     global direction_facing
-    ep_robot.chassis.move(x=0, y=0, z=-91, z_speed=100).wait_for_completed()
+    ep_robot.chassis.move(x=0, y=0, z=-90, z_speed=100).wait_for_completed()
     ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
     ep_gimbal.recenter(pitch_speed=200, yaw_speed=200).wait_for_completed()
     direction_facing = {'N': 'E', 'E': 'S', 'S': 'W', 'W': 'N'}[direction_facing]
@@ -103,6 +103,8 @@ def sub_data_handler(sub_info):  # sensor sharp เอาไว้เช็ค�
 
     dis_ssR = convert_to_cm(vaR) / 2
     dis_ssL = convert_to_cm(vaL) / 2 
+    print(dis_ssL)
+    print(dis_ssR)
 
 # --------------------------------------------------
 
@@ -221,26 +223,30 @@ def check_wall_right(): #sensor ir  # เซ็นเซอร์ขวา
 # --------------------------------------------------
 def adjust_left(): #sensor ir
     global err_dis_l
-    err_dis_l = (dis_ssL-10)/100
+    err_dis_l = (dis_ssL-9)/100
     if abs(err_dis_l) >= 0.01:
-        ep_chassis.move(x=0, y=-err_dis_l, z=0, xy_speed=3).wait_for_completed()
+        ep_chassis.move(x=0, y=-(err_dis_l), z=0, xy_speed=5).wait_for_completed()
+        ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
 
 # --------------------------------------------------
 
 def adjust_right(): #sensor ir
     global err_dis_r
-    err_dis_r = (dis_ssR-10)/100
+    err_dis_r = (dis_ssR-9)/100
     if abs(err_dis_r) >= 0.01:
-        ep_chassis.move(x=0, y=err_dis_r, z=0, xy_speed=3).wait_for_completed()
+        ep_chassis.move(x=0, y=err_dis_r, z=0, xy_speed=5).wait_for_completed()
+        ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
 # --------------------------------------------------
 def adjust_position_LR():
-    if abs(dis_ssL - dis_ssR) >= 2:
+    if abs(dis_ssL - dis_ssR) >= 1:
         if dis_ssL > dis_ssR:
-            move = ((dis_ssL - dis_ssR) /2)/100
-            ep_robot.chassis.move(x=0, y=move, z=0, xy_speed=3).wait_for_completed()
+            move = ((dis_ssL - dis_ssR) /1.95)/100
+            ep_robot.chassis.move(x=0, y=-(move), z=0, xy_speed=5).wait_for_completed()
+            ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
         else:
-            move = ((dis_ssR - dis_ssL) /2)/100
-            ep_robot.chassis.move(x=0, y=-move, z=0, xy_speed=3).wait_for_completed()
+            move = ((dis_ssR - dis_ssL) /1.95)/100
+            ep_robot.chassis.move(x=0, y=move, z=0, xy_speed=5).wait_for_completed()
+            ep_chassis.drive_wheels(w1=0, w2=0, w3=0, w4=0)
         
 
 
