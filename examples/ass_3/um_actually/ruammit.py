@@ -255,7 +255,6 @@ def adjust_front(): #sensor ir
 #         move_yaw = -(90 + yaw)
 #         ep_robot.chassis.move(x=0, y=0, z=move_yaw, z_speed=100).wait_for_completed()
 
-
 def adjust_pos():
     if front_wall() == True:
         adjust_front()
