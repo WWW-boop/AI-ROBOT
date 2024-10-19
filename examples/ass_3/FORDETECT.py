@@ -39,8 +39,8 @@ def blue_head_culprit(hsv, img):
                 x, y, w, h = cv2.boundingRect(bottle_contour_max)
                 aspect_ratio = float(w) / h
                 if 0.8 < aspect_ratio < 1.2:  # Check aspect ratio
-                    cv2.drawContours(img, [bottle_contour_max], -1, (0, 255, 0), 2)
-                    cv2.putText(img, "Bottle Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
+                    # cv2.drawContours(img, [bottle_contour_max], -1, (0, 255, 0), 2)
+                    # cv2.putText(img, "Bottle Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
                     return x, y, w, h  # Return bounding box coordinates
     return None
 
@@ -94,12 +94,12 @@ def gai_detect(hsv, img):
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if area > 100:  
+        if 10 > area > 100:  #ขนาด
             x, y, w, h = cv2.boundingRect(cnt)
             peri = cv2.arcLength(cnt, True)
             approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
 
-            if len(approx) > 5: 
+            if len(approx) > 5: #ค่าความเหมือน
                 cv2.drawContours(roi, [approx], -1, (0, 255, 0), 3)
                 cv2.putText(roi, "Chicken Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
