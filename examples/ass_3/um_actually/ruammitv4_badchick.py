@@ -30,10 +30,10 @@ center_y = 720 / 2
 
 fig, ax = plt.subplots()
 ax.set_xlim(0, 7)  # Adjust the limits to fit your map
-ax.set_ylim(0, 7)
+ax.set_ylim(7, 0)
 robot_plot, = ax.plot([], [], 'b-', label="Current Position")
 fired_plot, = ax.plot([], [], 'r*', label="Terrorist Position")
-chick_plot, = ax.plot([], [], 'g^', label="Chicken Position")
+# chick_plot, = ax.plot([], [], 'g^', label="Chicken Position")
 ax.grid(True)
 ax.set_xlabel('X-axis')
 ax.set_ylabel('Y-axis')
@@ -48,7 +48,7 @@ ax.legend()
 fired_positions = []
 chick_position = []
 def update_plot(frame):
-    global positions, now_pos, robot_plot, fired_positions, chick_position
+    global positions, now_pos, robot_plot, fired_positions
 
     # Update the plot with the full path (all positions)
     positions.append(now_pos)
@@ -60,12 +60,12 @@ def update_plot(frame):
     # Highlight the current position with a red marker
     ax.plot([now_pos[0]], [now_pos[1]], 'ro-', label="Current Position")
 
-    if chick_position:
-        for chick_pos in chick_position:
-            ax.plot([chick_pos[0]], [chick_pos[1]], 'g^', markersize=12)  # No need for label in the loop
-        print(f"Plotting Chicken positions: {chick_position}")  # Debugging line
-        plt.draw()  # Ensure the plot is redrawn
-        plt.pause(0.01)
+    # if chick_position:
+    #     for chick_pos in chick_position:
+    #         ax.plot([chick_pos[0]], [chick_pos[1]], 'g^', markersize=12)  # No need for label in the loop
+    #     print(f"Plotting Chicken positions: {chick_position}")  # Debugging line
+    #     plt.draw()  # Ensure the plot is redrawn
+    #     plt.pause(0.01)
     # Plot red stars for all fired positions
     if fired_positions:
         for pos in fired_positions:
@@ -393,6 +393,34 @@ def body_acrylic_detect(img):
 
 # -----------------------------------------------------
 
+
+def gai_detect(hsv, img):
+    x_start, y_start, x_end, y_end = 200, 320, 960, 670  #xsrart 200 or 320
+    roi = img[y_start:y_end, x_start:x_end]
+    hsv_roi = hsv[y_start:y_end, x_start:x_end]
+
+    lower_hue_gai = np.array([29, 235, 85])
+    upper_hue_gai = np.array([37, 255, 255])
+    gai_mask = cv2.inRange(hsv_roi, lower_hue_gai, upper_hue_gai)
+    
+    kernel = np.ones((5, 5), np.uint8)
+    gai_mask = cv2.GaussianBlur(gai_mask, (9, 9), 0)
+    gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_CLOSE, kernel)
+    gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_OPEN, kernel)
+
+    contours, _ = cv2.findContours(gai_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area > 100:  
+            x, y, w, h = cv2.boundingRect(cnt)
+            peri = cv2.arcLength(cnt, True)
+            approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
+
+            if len(approx) > 5: 
+                cv2.drawContours(roi, [approx], -1, (0, 255, 0), 3)
+                cv2.putText(roi, "Chicken Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
 def gai_detect(hsv, img):
     global detection_duration, now_pos
     x_start, y_start, x_end, y_end = 200, 320, 960, 670
@@ -411,15 +439,15 @@ def gai_detect(hsv, img):
             peri = cv2.arcLength(cnt, True)
             approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
             if len(approx) > 5:
-                if direction_facing == 'N':
-                    chick_position.append([now_pos[0]+1, now_pos[1]])
-                elif direction_facing == 'W':
-                    chick_position.append([now_pos[0], now_pos[1]-1])
-                elif direction_facing == 'E':
-                    chick_position.append([now_pos[0], now_pos[1]+1])
-                elif direction_facing == 'S':
-                    chick_position.append([now_pos[0]-1, now_pos[1]])
-                print(f"Chick at position: {now_pos}")
+                # if direction_facing == 'N':
+                #     chick_position.append([now_pos[0]+1, now_pos[1]])
+                # elif direction_facing == 'W':
+                #     chick_position.append([now_pos[0], now_pos[1]-1])
+                # elif direction_facing == 'E':
+                #     chick_position.append([now_pos[0], now_pos[1]+1])
+                # elif direction_facing == 'S':
+                #     chick_position.append([now_pos[0]-1, now_pos[1]])
+                # print(f"Chick at position: {now_pos}")
 
                 cv2.drawContours(roi, [approx], -1, (0, 255, 0), 3)
                 cv2.putText(roi, "Chicken Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
