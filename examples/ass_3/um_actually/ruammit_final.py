@@ -26,25 +26,18 @@ terrorist_positions = []
 hostage_position = []
 def update_plot(frame):
     global positions, now_pos, robot_plot, terrorist_positions
-
-    # Update the plot with the full path (all positions)
     positions.append(now_pos)
     x_vals, y_vals = zip(*positions)
-
-    # Update the robot path with blue lines
     robot_plot.set_data(x_vals, y_vals)
-
+    ax.plot([now_pos[0]], [now_pos[1]], 'ro', label="Passage Position")
     if hostage_position:
         for hostage_pos in hostage_position:
-            ax.plot([hostage_pos[0]], [hostage_pos[1]], 'g^', markersize=12)  # No need for label in the loop
-        # print(f"Plotting Chicken positions: {hostage_position}")  # Debugging line
+            ax.plot([hostage_pos[0]], [hostage_pos[1]], 'g^', markersize=12)
         plt.draw()  # Ensure the plot is redrawn
         plt.pause(0.01)
-    # Plot red stars for all fired positions
     if terrorist_positions:
         for pos in terrorist_positions:
-            ax.plot([pos[0]], [pos[1]], 'r*', markersize=12)  # No need for label in the loop
-        # print(f"Plotting fired positions: {terrorist_positions}")  # Debugging line
+            ax.plot([pos[0]], [pos[1]], 'r*', markersize=12)
         plt.draw()  # Ensure the plot is redrawn
         plt.pause(0.01)
     return robot_plot,
@@ -296,8 +289,8 @@ upper_hue_gai = np.array([37, 255, 255])
 center_x = 1280 / 2
 center_y = 720 / 2
 
-def smooth_bbox(smooth_val, new_val, alpha):
-    return smooth_val * (1 - alpha) + new_val * alpha
+# def smooth_bbox(smooth_val, new_val, alpha):
+#     return smooth_val * (1 - alpha) + new_val * alpha
 
 def blue_head_culprit(hsv, img):
 
@@ -318,54 +311,27 @@ def blue_head_culprit(hsv, img):
                 x, y, w, h = cv2.boundingRect(bottle_contour_max)
                 aspect_ratio = float(w) / h
                 if 0.8 < aspect_ratio < 1.2:
-                    cv2.drawContours(img, [bottle_contour_max], -1, (0, 255, 0), 2)
-                    cv2.putText(img, "Bottle Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
+                    # cv2.drawContours(img, [bottle_contour_max], -1, (0, 255, 0), 2)
+                    # cv2.putText(img, "Bottle Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
                     return x, y, w, h
     return None
 
-def body_acrylic_detect(img):
-    x_start, y_start, x_end, y_end = 560, 470, 740, 600
-    roi = img[y_start:y_end, x_start:x_end]
+# def body_acrylic_detect(img):
+#     x_start, y_start, x_end, y_end = 560, 470, 740, 600
+#     roi = img[y_start:y_end, x_start:x_end]
 
-    blurred_roi = cv2.GaussianBlur(roi, (5, 5), 0)
-    gray_roi = cv2.cvtColor(blurred_roi, cv2.COLOR_BGR2GRAY)
-    edges_roi = cv2.Canny(gray_roi, 44, 138)
+#     blurred_roi = cv2.GaussianBlur(roi, (5, 5), 0)
+#     gray_roi = cv2.cvtColor(blurred_roi, cv2.COLOR_BGR2GRAY)
+#     edges_roi = cv2.Canny(gray_roi, 44, 138)
 
-    contours, _ = cv2.findContours(edges_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    for cnt in contours:
-        if cv2.contourArea(cnt) > 1 and len(cnt) >= 5:
-            ellipse = cv2.fitEllipse(cnt)
-            cv2.ellipse(roi, ellipse, (0, 255, 0), 2)
+#     contours, _ = cv2.findContours(edges_roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#     for cnt in contours:
+#         if cv2.contourArea(cnt) > 1 and len(cnt) >= 5:
+#             ellipse = cv2.fitEllipse(cnt)
+#             cv2.ellipse(roi, ellipse, (0, 255, 0), 2)
     
-    img[y_start:y_end, x_start:x_end] = roi
-    return img
-
-def gai_detect(hsv, img):
-    x_start, y_start, x_end, y_end = 200, 320, 960, 670  #xsrart 200 or 320
-    roi = img[y_start:y_end, x_start:x_end]
-    hsv_roi = hsv[y_start:y_end, x_start:x_end]
-
-    lower_hue_gai = np.array([29, 235, 85])
-    upper_hue_gai = np.array([37, 255, 255])
-    gai_mask = cv2.inRange(hsv_roi, lower_hue_gai, upper_hue_gai)
-    
-    kernel = np.ones((5, 5), np.uint8)
-    gai_mask = cv2.GaussianBlur(gai_mask, (9, 9), 0)
-    gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_CLOSE, kernel)
-    gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_OPEN, kernel)
-
-    contours, _ = cv2.findContours(gai_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    for cnt in contours:
-        area = cv2.contourArea(cnt)
-        if area > 100:  
-            x, y, w, h = cv2.boundingRect(cnt)
-            peri = cv2.arcLength(cnt, True)
-            approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
-
-            if len(approx) > 5: 
-                cv2.drawContours(roi, [approx], -1, (0, 255, 0), 3)
-                cv2.putText(roi, "Chicken Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+#     img[y_start:y_end, x_start:x_end] = roi
+#     return img
 
 def gai_detect(hsv, img):
     global detection_duration, now_pos
@@ -374,28 +340,30 @@ def gai_detect(hsv, img):
     hsv_roi = hsv[y_start:y_end, x_start:x_end]
 
     gai_mask = cv2.inRange(hsv_roi, lower_hue_gai, upper_hue_gai)
-    gai_mask = cv2.GaussianBlur(gai_mask, (9, 9), 0)
-    gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_CLOSE, kernel)
-    gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_OPEN, kernel)
+    # gai_mask = cv2.GaussianBlur(gai_mask, (9, 9), 0)
+    # gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_CLOSE, kernel)
+    # gai_mask = cv2.morphologyEx(gai_mask, cv2.MORPH_OPEN, kernel)
 
     contours, _ = cv2.findContours(gai_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:
-        if cv2.contourArea(cnt) > 100:
-            x, y, w, h = cv2.boundingRect(cnt)
-            peri = cv2.arcLength(cnt, True)
-            approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
-            if len(approx) > 5:
-                if direction_facing == 'N':
-                    hostage_position.append([now_pos[0]+1, now_pos[1]])
-                elif direction_facing == 'W':
-                    hostage_position.append([now_pos[0], now_pos[1]-1])
-                elif direction_facing == 'E':
-                    hostage_position.append([now_pos[0], now_pos[1]+1])
-                elif direction_facing == 'S':
-                    hostage_position.append([now_pos[0]-1, now_pos[1]])
-                print(f"Chick at position: {now_pos}")
-                cv2.drawContours(roi, [approx], -1, (0, 255, 0), 3)
-                cv2.putText(roi, "Chicken Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+        area = cv2.contourArea(cnt)
+        if area > 1200:
+            if area < 1500:
+                # x, y, w, h = cv2.boundingRect(cnt)
+                peri = cv2.arcLength(cnt, True)
+                approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
+                if len(approx) > 5: 
+                    if direction_facing == 'N':
+                        hostage_position.append([now_pos[0]+1, now_pos[1]])
+                    elif direction_facing == 'W':
+                        hostage_position.append([now_pos[0], now_pos[1]-1])
+                    elif direction_facing == 'E':
+                        hostage_position.append([now_pos[0], now_pos[1]+1])
+                    elif direction_facing == 'S':
+                        hostage_position.append([now_pos[0]-1, now_pos[1]])
+                    print(f"Chick at position: {now_pos}")
+                    # cv2.drawContours(roi, [approx], -1, (0, 255, 0), 3)
+                    # cv2.putText(roi, "Chicken Detected", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
     return img
 
 # --------------------------------------------------
@@ -478,7 +446,7 @@ def detect():
 
             detection_duration = time.time() - detection_start_time
             if detection_duration > 3:
-                ep_blaster.fire(fire_type=blaster.WATER_FIRE, times=5)
+                # ep_blaster.fire(fire_type=blaster.fire, times=5)
                 if direction_facing == 'N':
                     terrorist_positions.append([now_pos[0]+1, now_pos[1]])
                 elif direction_facing == 'W':
@@ -497,7 +465,7 @@ def detect():
                 ep_gimbal.recenter(pitch_speed=100, yaw_speed=100).wait_for_completed()
                 last_recenter_time = time.time()
                 break
-        img = body_acrylic_detect(img)
+        # img = body_acrylic_detect(img)
         img = gai_detect(hsv, img)
 
 # --------------------------------------------------
